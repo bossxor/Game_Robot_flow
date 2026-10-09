@@ -12,7 +12,7 @@ export class ConstructionRenderer{
   // A quiet sand road and construction cones frame the gameplay.
   box(w*.1,dockY+12,w*.8,7,4,'#dfc59a');
   for(const px of [left-14,left+bw+14]){x.fillStyle='#ffa052';x.beginPath();x.moveTo(px,dockY-10);x.lineTo(px-5,dockY+3);x.lineTo(px+5,dockY+3);x.fill();box(px-7,dockY+3,14,3,2,'#353b43');}
-  for(const j of g.jobs){if(g.time<j.launchUntil)continue;const px=left+(j.x+.5)*cell,py=j.y>g.height+1.8?dockY+(h+4-dockY)*Math.min(1,(j.y-g.height-1.8)/.8):top+(j.y+.5)*cy;this.robot(x,px,py,Math.max(11,w*.040),PALETTE[j.color],j.type,g.paused?0:Math.sin(g.time*12+j.id),j.collected>0);}
+  for(const j of g.jobs){const px=left+(j.x+.5)*cell,py=j.y>g.height+1.8?dockY+(h-18-dockY)*Math.min(1,(j.y-g.height-1.8)/.8):top+(j.y+.5)*cy;this.robot(x,px,py,Math.max(11,w*.040),PALETTE[j.color],j.type,g.paused?0:Math.sin(g.time*12+j.id),j.collected>0);}
   const s=w/384,spacing=72*s,truckX=w/2+(g.truckState==='leaving'?Math.pow(Math.min(1,g.truckTime/1.4),2)*w*.75:g.truckState==='entering'?-spacing*(1-g.truckTime/.5):0);
   const outstanding=g.remainingBlocks+g.jobs.reduce((n,j)=>n+j.collected,0)+g.truckPending+g.truckCargo,visible=Math.min(3,Math.ceil(outstanding/20));
   const truck=(cx,cargo)=>{x.save();x.translate(cx,dockY);x.scale(s*.75,s*.75);box(-43,12,88,5,3,'#c7b38e');for(const p of [-27,26]){x.fillStyle='#353b43';x.beginPath();x.arc(p,10,6,0,Math.PI*2);x.fill();}box(-39,-13,52,24,5,'#fff3df');box(-39,-9,52,4,2,'#ffa052');box(13,-15,30,26,6,'#ffa052');box(17,-11,20,12,3,'#353b43');for(let i=0;i<Math.ceil(cargo/2);i++)box(-34+(i%5)*9,-20-Math.floor(i/5)*8,8,8,2,Object.values(PALETTE)[i%7]);x.restore();};

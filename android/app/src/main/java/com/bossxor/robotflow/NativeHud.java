@@ -69,7 +69,7 @@ public final class NativeHud extends View {
         label(c, String.format(Locale.KOREA, "STAGE %03d", game.level.id), width / 2, 53, 25, INK);
         box(c, width - 86, 26, 72, 38, 0xffbe945e, 12);
         box(c, width - 86, 23, 72, 38, 0xffffca76, 12);
-        label(c, "▶ " + (game.finishing?3:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
+        label(c, "▶ " + (game.finishing?5:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
         label(c,new String[]{"NORMAL","HARD","SUPER HARD"}[game.level.difficulty],width/2,65,8,game.level.difficulty==2?0xffb66a95:game.level.difficulty==1?0xffb56b36:MUTED_COLOR);
         // The builder gauge stays close to the title instead of splitting the container rows.
         box(c, width / 2 - 42, 69, 84, 3, 0xffdac6a6, 2);
@@ -140,9 +140,6 @@ public final class NativeHud extends View {
             NativeGame.Capsule a = game.slots.get(slot); if (a == null) continue;
             Motion m = position(a.id, GameLayout.columnX(slot, game.slots.size()), GameLayout.ACTIVE_Y, now);
             card(c, a, m.x, m.y, true, true, false);
-            boolean light=game.time-a.lastSpawnAt<.18||((game.time-a.lastSpawnAt)>.36&&a.remaining>0);
-            box(c,m.x+9,m.y+2,30,4,light?0xffffe49c:shade(NativeGame.COLORS[a.color],.7f),2);
-            for(NativeGame.Bot bot:game.bots)if(bot.capsuleId==a.id&&bot.phase==5){float t=Math.min(1,(float)(bot.phaseTime/NativeGame.LAUNCH_TIME)),px=m.x+24,py=m.y+24-t*34;box(c,px-7,py-9,14,14,NativeGame.COLORS[a.color],4);box(c,px-5,py-5,10,5,INK,2);box(c,px-3,py-4,2,2,CREAM,1);box(c,px+1,py-4,2,2,CREAM,1);box(c,px-5,py+5,3,4,CREAM,1);box(c,px+2,py+5,3,4,CREAM,1);}
         }
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
         if (clearMode) label(c,"없앨 색의 블록을 터치하세요",192,65,9,INK);

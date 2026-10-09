@@ -68,7 +68,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         GLES20.glUseProgram(program); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
         NativeGame g = game; if (g == null || width == 0) return;
         synchronized (g) {
-            int actualSpeed=g.finishing?3:speed;
+            int actualSpeed=g.finishing?5:speed;
             if(preview||!g.paused)clock+=dt*(preview?1:BASE_SIMULATION_RATE*actualSpeed);
             if (preview) { camera(8, 7, true); drawPreview(); }
             else {
@@ -85,7 +85,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         if(!home){
             float half=Math.max(sceneWidth/.762f/2,sceneDepth*.62f*aspect);
             Matrix.orthoM(projection,0,-half,half,-half/aspect,half/aspect,.1f,300);
-            Matrix.setLookAtM(view,0,0,sceneWidth*1.875f,sceneWidth*1.25f,0,0,sceneWidth*.146875f,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);portalZ=ground(0,-1.02f)[2];if(game!=null)game.portalSpan=half*2;return;
+            Matrix.setLookAtM(view,0,0,sceneWidth*1.875f,sceneWidth*1.25f,0,0,sceneWidth*.146875f,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);portalZ=ground(0,-.92f)[2];if(game!=null)game.portalSpan=half*2;return;
         }
         float halfHeight = home ? 3.4f : sceneDepth * .32f + .7f;
         float distance = Math.max(sceneWidth / 2 / aspect, halfHeight) / (float)Math.tan(Math.toRadians(fov / 2)) * 1.15f;
@@ -157,7 +157,6 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         int visible=g.visibleTrucks();if(visible>0)truck(truckX,road,1.45f*scale,g.truckState==0?0:(float)g.truckClock*7,g.cargoColors);
         for(int i=1;i<visible;i++){float advance=g.truckState==2?(float)g.truckClock/1.4f:0;truck((-i-(g.truckState==2?1:0)+advance)*spacing,road,1.3f*scale,advance*7,Collections.emptyList());}
         for(NativeGame.Bot bot:g.bots){
-            if(bot.phase==5)continue;
             float size=(bot.kind==1?1.9f:1.6f)*scale;
             float motion=bot.phase==0?bot.distance/scale:0;
             float lift=bot.phase==1?(float)Math.sin(Math.min(1,bot.phaseTime/.22)*Math.PI):0;
@@ -224,7 +223,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         draw(cube,0,.02f,1.8f,8,.04f,1.5f,0,rgb(0xff9a9990));
         robot(-1.6f+(float)Math.sin(clock*.65)*.12f,0,1.6f,rgb(NativeGame.COLORS[3]),0,(float)Math.sin(clock*.5)*10,(float)clock*.55f,true);
         robot(1.6f,0,1.7f,rgb(NativeGame.COLORS[2]),1,-10,(float)clock*.50f,true);
-        truck((float)(clock%10)-5,2.1f,.48f,(float)clock,Arrays.asList(0,1,2,3));truck(-3.4f,2.1f,.42f,0,Collections.emptyList());
+        truck((float)(clock%10)-5,2.1f,.48f,(float)clock,Arrays.asList(0,1,2,3));
         crane(3,-2,3);for(int i=0;i<4;i++)cone(-3.5f+i*2.2f,2.5f,.6f);
         for(int i=0;i<5;i++)draw(rounded,(i-2)*.75f,.35f,-1.9f,.6f,.6f,.6f,0,rgb(NativeGame.COLORS[i]));
     }

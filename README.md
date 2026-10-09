@@ -1,9 +1,9 @@
 # Robot Flow — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-현재 설치 파일: `releases/RobotFlow-v0.7.0-native-3d-debug.apk`
+현재 설치 파일: `releases/RobotFlow-v0.7.1-native-3d-debug.apk`
 
-v0.7.0은 5개 작업 공간 표시, 컨테이너에서 순차 출격, 묶음 대기열, 화면을 터치하는 아이템 조작, 최대 3대의 대기 트럭과 확대된 로봇을 적용했습니다. NORMAL/HARD/SUPER HARD, 마지막 작업 자동 3배속, 연승 보상, 시간대 배경과 움직이는 메인을 포함합니다. [현재 UI·게임 규칙](docs/game-ui-v07.md), [검증 기록](docs/v07-validation.md)
+v0.7.1은 5개 작업 공간 표시, 컨테이너 앞에서 순차 출격, 묶음 대기열, 화면을 터치하는 아이템 조작, 최대 3대의 대기 트럭과 확대된 로봇을 적용했습니다. NORMAL/HARD/SUPER HARD, 마지막 작업 자동 5배속, 연승 보상, 시간대 배경과 움직이는 메인을 포함합니다. [현재 UI·게임 규칙](docs/game-ui-v07.md), [검증 기록](docs/v071-validation.md)
 
 참고 APK는 UI 배치와 조작 흐름 분석에 사용했습니다. 게임 그래픽과 코드는 로봇 테마로 자체 구현하며 참고 APK의 자산을 배포하지 않습니다.
 
@@ -33,10 +33,10 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 - 기본 운반원 1개 / 게이지가 찼을 때 중장비 최대 8개 회수. 세 번째 로봇 단계 없음
 - 컨테이너 5개와 독립적인 공용 트럭: 20개 적재 후 출발, 마지막 트럭은 부분 적재로 출발
 - 슬롯 추가·셔플은 즉시 사용, 컬러 제거는 보드 블록 터치, 꺼내기는 대기 컨테이너 터치
-- 묶음 선택·위험 선택 안내, 출격 문·표시등, 남은 대기 컨테이너가 5개 미만이며 빈칸에 모두 들어가면 자동 출격·3배속
+- 묶음 선택·위험 선택 안내, 출격 모션 없이 컨테이너 앞에 로봇 등장, 남은 대기 컨테이너가 5개 이하이며 빈칸에 모두 들어가면 자동 출격·5배속
 - 5의 배수 HARD / 10의 배수 SUPER HARD, 묶음 작업과 연승 보너스(최대 50코인), 시간대 배경
 - 아이템 코인 구매, 설정 제목 7회 터치로 무제한 모드 On/Off
-- 승리/교착 패배, 재시작, 일시정지, 2배속, 백그라운드 일시정지
+- 승리/교착 패배, 재시작, 일시정지, 1/2/3/4배속, 백그라운드 일시정지
 - 500개 레벨, 10개 그림 테마와 변형. 초반 20×20(400개), 이후 48×48(2,304개) 보드
 - 메인·스테이지·로봇·아이템·설정, 로컬 진행·기록·코인·부스터 저장
 - 음악·효과음·진동 및 음량 설정
@@ -50,7 +50,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RobotFlow-v0.7.0-native-3d-debug.apk
+adb install --user 0 -r releases/RobotFlow-v0.7.1-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 

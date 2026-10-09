@@ -27,10 +27,10 @@ public final class NativeCoreTests {
         g.remove(22);g.remove(17);check(g.available(1).size()==1,"a removed passage exposes the center");
         NativeGame.Level concurrent=simple();concurrent.blocks.add(new NativeGame.Block(0,4,0));concurrent.blocks.add(new NativeGame.Block(4,4,1));
         concurrent.capsules.add(new NativeGame.Capsule(1,0,1,0));concurrent.capsules.add(new NativeGame.Capsule(2,1,1,0));
-        g=new NativeGame(concurrent,new Random(2));check(g.select(1)&&g.select(2),"concurrent selection");for(int n=0;n<30&&g.bots.size()<2;n++)g.update(.1);
-        check(g.bots.size()==2,"two independently dispatched robots");check(g.bots.get(0).x==g.origin(0).x&&g.bots.get(1).x==g.origin(1).x,"separate container origins");
+        g=new NativeGame(concurrent,new Random(2));check(g.select(1)&&g.select(2),"concurrent selection");for(int n=0;n<200&&g.bots.isEmpty();n++)g.update(.01);check(g.bots.get(0).phase==0&&g.bots.get(0).x==g.origin(0).x,"robot appears directly in front of first container");for(int n=0;n<200&&g.bots.size()<2;n++)g.update(.01);
+        check(g.bots.size()==2,"two independently dispatched robots");check(g.bots.get(1).x==g.origin(1).x&&g.bots.get(1).phase==0,"separate container origins");
         HashSet<Integer> targets=new HashSet<>();for(NativeGame.Bot b:g.bots)for(int id:b.targets)check(targets.add(id),"unique target reservation");
-        NativeGame.Bot walker=g.bots.get(0);while(walker.phase==5)g.update(.01);float oldX=walker.x,oldY=walker.y;g.update(.1);
+        NativeGame.Bot walker=g.bots.get(1);float oldX=walker.x,oldY=walker.y;g.update(.1);
         double distance=Math.hypot(walker.x-oldX,walker.y-oldY);
         check(distance>.05&&distance<.25,"1x walking accelerates gently");
         g.paused=true;double before=g.time;g.update(.1);check(g.time==before,"pause freezes simulation");g.paused=false;
@@ -49,7 +49,7 @@ public final class NativeCoreTests {
 
         check(NativeGame.COLORS.length==7,"seven team colors");
         float[] walks=new float[2];int[] sizes={32,48};
-        for(int i=0;i<sizes.length;i++){NativeGame.Level dense=simple();dense.width=dense.height=sizes[i];dense.blocks.add(new NativeGame.Block(0,sizes[i]-1,0));dense.capsules.add(new NativeGame.Capsule(1,0,1,0));NativeGame walk=new NativeGame(dense);walk.select(1);for(int n=0;n<200&&walk.bots.isEmpty();n++)walk.update(.01);NativeGame.Bot moving=walk.bots.get(0);while(moving.phase==5)walk.update(.01);float distanceBefore=moving.distance;walk.update(.1);walks[i]=moving.distance-distanceBefore;}
+        for(int i=0;i<sizes.length;i++){NativeGame.Level dense=simple();dense.width=dense.height=sizes[i];dense.blocks.add(new NativeGame.Block(0,sizes[i]-1,0));dense.capsules.add(new NativeGame.Capsule(1,0,1,0));NativeGame walk=new NativeGame(dense);walk.select(1);for(int n=0;n<200&&walk.bots.isEmpty();n++)walk.update(.01);NativeGame.Bot moving=walk.bots.get(0);float distanceBefore=moving.distance;walk.update(.1);walks[i]=moving.distance-distanceBefore;}
         check(Math.abs(walks[1]/48-walks[0]/32)<.00001,"fine grids preserve normalized walking speed");
         NativeGame.Level trucks=simple();for(int i=0;i<25;i++)trucks.blocks.add(new NativeGame.Block(i%5,i/5,0));trucks.capsules.add(new NativeGame.Capsule(1,0,25,0));g=new NativeGame(trucks);g.select(1);
         boolean independent=false,departed=false;for(int n=0;n<3000&&g.status==0;n++){g.update(.1);if(g.truckState==1){departed=true;if(g.slots.get(0)!=null)independent=true;}if(n==40){g.paused=true;double t=g.time,tc=g.truckClock;int cargo=g.truckCargo;g.update(.1);check(g.time==t&&g.truckClock==tc&&g.truckCargo==cargo,"pause freezes truck and robot simulation");g.paused=false;}}

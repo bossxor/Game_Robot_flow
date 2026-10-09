@@ -138,7 +138,7 @@ export class Game {
     route.push(...returnPath.reverse().slice(1), destination);
     c.remaining -= this.construction ? selected.length : 1; c.mega = false; c.hasWorked = true;
     c.lastSpawnAt=this.time;
-    this.jobs.push({ id: this.jobId++, containerId: c.id, slot:index, launchUntil:this.construction?this.time+.6:0, color: c.color, type, x: origin.x, y: origin.y, route, step: 0, selected, collected: 0 });
+    this.jobs.push({ id: this.jobId++, containerId: c.id, slot:index, color: c.color, type, x: origin.x, y: origin.y, route, step: 0, selected, collected: 0 });
     if (type === 'power') this.addGauge(5);
     this.onEvent({ type, color: c.color });
   }
@@ -159,7 +159,6 @@ export class Game {
     if (this.paused || this.status !== 'playing') return;
     dt = Math.max(0, Math.min(dt, 0.1)); this.time += dt;
     for (const j of this.jobs) {
-      if(this.time<j.launchUntil)continue;
       let travel = dt * (this.construction ? (j.type === 'mega' ? 3.8 : 5.2)*Math.max(1,this.width/32) : (j.type === 'mega' ? 10 : 14));
       while (travel > 0 && j.step < j.route.length) {
         const p = j.route[j.step], distance = Math.hypot(p.x - j.x, p.y - j.y);
@@ -184,7 +183,7 @@ export class Game {
       }
     }
     this.spawnClock += dt;
-    if(this.construction&&this.level.autoFinish&&!this.finishing){const waiting=this.queue.filter(c=>!c.taken);if(waiting.length<5&&waiting.length<=this.slots.filter(c=>!c).length){let next;while((next=this.queue.find(c=>!c.taken&&this.isUnlocked(c)))&&this.select(next.id)){}if(this.queue.every(c=>c.taken)){this.finishing=true;this.onEvent({type:'finishRush'});}}}
+    if(this.construction&&this.level.autoFinish&&!this.finishing){const waiting=this.queue.filter(c=>!c.taken);if(waiting.length<=5&&waiting.length<=this.slots.filter(c=>!c).length){let next;while((next=this.queue.find(c=>!c.taken&&this.isUnlocked(c)))&&this.select(next.id)){}if(this.queue.every(c=>c.taken)){this.finishing=true;this.onEvent({type:'finishRush'});}}}
     if (this.spawnClock >= (this.construction?.52:.13)) {
       this.spawnClock = 0;
       if(this.construction){for(let n=0;n<this.slots.length;n++){const i=this.spawnSlot++%this.slots.length,c=this.slots[i];if(c){const before=this.jobs.length;this.spawn(c,i);if(this.jobs.length>before)break;}}}else this.slots.forEach((c, i) => { if (c) this.spawn(c, i); });

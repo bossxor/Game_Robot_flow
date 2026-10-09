@@ -80,7 +80,7 @@ public final class MainActivity extends Activity {
             if(game!=null)game.listener=null;rebuild("game");game=next;resultShown=false;if(!inspect){save.current=id;save.persist();}
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final NativeGame owner=game;
-            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 3배속");}});
+            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 5배속");}});
             header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
             scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.clearMode=false;consume(1);}else toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
@@ -103,7 +103,7 @@ public final class MainActivity extends Activity {
         if(key.equals("home")){confirmLeave();return;}
         if(key.equals("pause")){showPause();return;}
         synchronized(game){
-            if(key.equals("speed")){if(game.finishing)return;scene.speed=scene.speed==1?2:1;header.speed=scene.speed;header.invalidate();return;}
+            if(key.equals("speed")){if(game.finishing)return;scene.speed=scene.speed%4+1;header.speed=scene.speed;header.invalidate();return;}
             if(key.equals("queue-page")){controls.page=Math.max(0,controls.page+value);controls.invalidate();return;}
             if(key.equals("capsule")){
                 if(controls.pullMode){if(save.hasBooster(3)&&game.pullOut(value)){save.consumeBooster(3);controls.pullMode=false;effect("select");}else toast("뒤쪽에 잠긴 컨테이너를 선택하세요.");}

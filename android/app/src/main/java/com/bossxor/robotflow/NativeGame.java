@@ -55,7 +55,7 @@ public final class NativeGame {
     public int status = PLAYING, gauge, collected, moves, nextBotId;
     public boolean paused, colorClearUsed, finishing;
     private int spawnSlot;
-    public static final double SPAWN_INTERVAL = .52, LAUNCH_TIME = .60;
+    public static final double SPAWN_INTERVAL = .52;
     public double time, spawnClock, megaAt = -100;
     private final boolean[] completedColors = new boolean[7];
     public int truckState, truckCargo, delivered, departures, clearedByItem;
@@ -163,7 +163,7 @@ public final class NativeGame {
         Point origin = origin(slot); int start = key(Math.max(-1, Math.min(width, Math.round(origin.x))), height + 4);
         Flood f = flood(gx(start), gy(start));
         Bot bot = new Bot(); bot.id = nextBotId++; bot.capsuleId = c.id; bot.color = c.color; bot.x = origin.x; bot.y = origin.y;
-        bot.kind = c.mega ? 1 : 0;bot.phase=5;
+        bot.kind = c.mega ? 1 : 0;
         int capacity = Math.min(c.remaining, bot.kind == 1 ? level.megaCapacity : 1);
         bot.route.add(new Point(gx(start), gy(start)));
         for (int n = 0; n < capacity && !targets.isEmpty(); n++) {
@@ -210,7 +210,6 @@ public final class NativeGame {
             }
         }
         for (Bot bot : bots) {
-            if(bot.phase==5){int slot=slots.indexOf(capsule(bot.capsuleId));if(slot>=0){Point p=origin(slot);bot.x=p.x;bot.y=p.y;}bot.phaseTime+=dt;if(bot.phaseTime>=LAUNCH_TIME){bot.phase=0;bot.phaseTime=0;}continue;}
             if(bot.phase==3){bot.phaseTime+=dt;if(bot.phaseTime>=.30)bot.phase=4;continue;}
             if (bot.phase == 1) {
                 bot.phaseTime += dt;
@@ -248,7 +247,7 @@ public final class NativeGame {
         }
         spawnClock+=dt;
         if(level.autoFinish&&!finishing){int waiting=0,free=0;for(Capsule c:queue)if(!c.taken)waiting++;for(Capsule c:slots)if(c==null)free++;
-            if(waiting<5&&waiting<=free){boolean progress=true;while(progress){progress=false;for(Capsule c:queue)if(!c.taken&&unlocked(c)&&select(c.id)){progress=true;break;}}boolean all=true;for(Capsule c:queue)if(!c.taken)all=false;if(all){finishing=true;event("finishRush",-1,0,0);}}
+            if(waiting<=5&&waiting<=free){boolean progress=true;while(progress){progress=false;for(Capsule c:queue)if(!c.taken&&unlocked(c)&&select(c.id)){progress=true;break;}}boolean all=true;for(Capsule c:queue)if(!c.taken)all=false;if(all){finishing=true;event("finishRush",-1,0,0);}}
         }
         if(spawnClock>=SPAWN_INTERVAL){spawnClock=0;for(int n=0;n<slots.size();n++){int i=spawnSlot++%slots.size();Capsule c=slots.get(i);if(c!=null){int before=bots.size();spawn(c,i);if(bots.size()>before)break;}}}
         if(remainingBlocks()==0&&bots.isEmpty()){
