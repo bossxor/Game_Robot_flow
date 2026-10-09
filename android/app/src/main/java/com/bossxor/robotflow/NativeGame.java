@@ -9,7 +9,8 @@ public final class NativeGame {
     public static final String[] COLOR_NAMES = {"코랄", "블루", "옐로", "민트", "퍼플", "오렌지", "핑크"};
     public static final int[] COLORS = {0xffef7868, 0xff61ace2, 0xfff4ca60, 0xff83c6a3, 0xff8b78b8, 0xffffa052, 0xffed96bc};
     public static class Level {
-        public int id, width, height, slotCount = 5, revealDepth = 100, reward = 100;
+        public int id, width, height, difficulty, theme, slotCount = 5, revealDepth = 100, reward = 100;
+        public boolean autoFinish;
         public int megaRequired = 100, megaCapacity = 8;
         public double powerChance = 0;
         public String name = "로봇 공장";
@@ -23,7 +24,8 @@ public final class NativeGame {
         public Block(int x, int y, int color) { this.x = x; this.y = y; this.color = color; }
     }
     public static class Capsule {
-        public int id, color, count, remaining, depth, lane, loaded;
+        public int id, color, count, remaining, depth, lane, loaded, group;
+        public double selectedAt, lastSpawnAt = -100;
         public int[] blockedBy = new int[0];
         public boolean taken, retired, mega;
         public double powerChance = -1;
@@ -51,20 +53,24 @@ public final class NativeGame {
     public final Random random;
     public Listener listener;
     public int status = PLAYING, gauge, collected, moves, nextBotId;
-    public boolean paused, colorClearUsed;
+    public boolean paused, colorClearUsed, finishing;
+    private int spawnSlot;
+    public static final double SPAWN_INTERVAL = .52, LAUNCH_TIME = .60;
     public double time, spawnClock, megaAt = -100;
     private final boolean[] completedColors = new boolean[7];
-    public int truckState, truckCargo, delivered, departures;
+    public int truckState, truckCargo, delivered, departures, clearedByItem;
     public double truckClock;
     public final List<Integer> cargoColors = new ArrayList<>();
     public static final int TRUCK_CAPACITY = 20;
     private final int width, height, gridWidth, gridHeight;
     private final Block[][] cells;
+    public float portalSpan;
 
     public NativeGame(Level level) { this(level, new Random()); }
     public NativeGame(Level level, Random random) {
         this.level = level; this.random = random;
         width = level.width; height = level.height; gridWidth = width + 2; gridHeight = height + 7;
+        portalSpan=width/.762f;
         cells = new Block[height][width];
         for (Block original : level.blocks) {
             Block b = new Block(original.x, original.y, original.color); b.id = blocks.size();
@@ -72,7 +78,7 @@ public final class NativeGame {
         }
         for (Capsule original : level.capsules) {
             Capsule c = new Capsule(original.id, original.color, original.count, original.depth);
-            c.blockedBy = original.blockedBy.clone(); c.lane = original.lane; c.powerChance = original.powerChance;
+            c.blockedBy = original.blockedBy.clone(); c.lane = original.lane; c.powerChance = original.powerChance; c.group=original.group;
             queue.add(c);
         }
         for (int i = 0; i < level.slotCount; i++) slots.add(null);
@@ -92,7 +98,7 @@ public final class NativeGame {
         for (Capsule q : queue) if (!q.taken) min = Math.min(min, q.depth);
         return unlocked(c) || c.depth - min <= level.revealDepth;
     }
-    public Point origin(int slot) { return new Point((slot + .5f) * (width + 1) / slots.size() - .5f, height + 4.4f); }
+    public Point origin(int slot) { return new Point((width-1)/2f+(slot-(slots.size()-1)/2f)*60/384*portalSpan, height + 4.4f); }
     public List<Block> available(int color) {
         List<Block> found = new ArrayList<>();
         for (Block b : blocks) if (!b.removed && !b.reserved && b.reachable && (color < 0 || color == b.color)) found.add(b);
@@ -127,13 +133,22 @@ public final class NativeGame {
         for (Block b : blocks) { b.reachable = false; if (!b.removed) for (int k : neighbors(b)) if (f.distance[k] >= 0) { b.reachable = true; break; } }
     }
     private void addGauge(int amount) { gauge = Math.min(level.megaRequired, gauge + amount); }
+    public List<Capsule> selectionGroup(Capsule selected) {
+        List<Capsule> result=new ArrayList<>();if(selected==null)return result;
+        for(Capsule c:queue)if(!c.taken&&(c==selected||(selected.group>0&&c.group==selected.group)))result.add(c);
+        return result;
+    }
+    public boolean risky(Capsule selected){
+        List<Capsule> group=selectionGroup(selected);int free=0;for(Capsule c:slots)if(c==null)free++;
+        if(group.size()!=free)return false;for(Capsule c:group)if(!available(c.color).isEmpty())return false;return true;
+    }
+    public int visibleTrucks(){return Math.min(3,Math.max(truckState==1?1:0,(blocks.size()-delivered-clearedByItem+truckCargo+TRUCK_CAPACITY-1)/TRUCK_CAPACITY));}
     public synchronized boolean select(int id) {
-        Capsule c = capsule(id); int slot = slots.indexOf(null);
-        if (status != PLAYING || paused || c == null || !unlocked(c) || slot < 0) return false;
-        c.taken = true; c.mega = gauge >= level.megaRequired; if (c.mega) gauge = 0;
-        slots.set(slot, c); moves++;
-        if (!available(c.color).isEmpty()) addGauge(15);
-        spawnClock = .28; event("select", c.color, origin(slot).x, origin(slot).y); return true;
+        Capsule selected=capsule(id);List<Capsule> group=selectionGroup(selected);int free=0;for(Capsule c:slots)if(c==null)free++;
+        if(status!=PLAYING||paused||group.isEmpty()||free<group.size())return false;
+        for(Capsule c:group)if(!unlocked(c))return false;
+        for(Capsule c:group){int slot=slots.indexOf(null);c.taken=true;c.selectedAt=time;c.mega=gauge>=level.megaRequired;if(c.mega)gauge=0;slots.set(slot,c);if(!available(c.color).isEmpty())addGauge(15);event("select",c.color,origin(slot).x,origin(slot).y);}
+        moves++;return true;
     }
     private List<Point> path(Flood f, int end) {
         List<Point> result = new ArrayList<>();
@@ -143,13 +158,12 @@ public final class NativeGame {
     private int workers(int id) { int n = 0; for (Bot b : bots) if (b.capsuleId == id) n++; return n; }
     private void spawn(Capsule c, int slot) {
         // Keep the physical walking speed and worker density stable on finer picture grids.
-        float densityScale = Math.max(1, width / 32f);
-        if (c.remaining <= 0 || workers(c.id) >= Math.round(8 * densityScale)) return;
+        if (c.remaining <= 0 || workers(c.id) >= 4 || time-c.selectedAt<.65) return;
         List<Block> targets = available(c.color); if (targets.isEmpty()) return;
         Point origin = origin(slot); int start = key(Math.max(-1, Math.min(width, Math.round(origin.x))), height + 4);
         Flood f = flood(gx(start), gy(start));
         Bot bot = new Bot(); bot.id = nextBotId++; bot.capsuleId = c.id; bot.color = c.color; bot.x = origin.x; bot.y = origin.y;
-        bot.kind = c.mega ? 1 : 0;
+        bot.kind = c.mega ? 1 : 0;bot.phase=5;
         int capacity = Math.min(c.remaining, bot.kind == 1 ? level.megaCapacity : 1);
         bot.route.add(new Point(gx(start), gy(start)));
         for (int n = 0; n < capacity && !targets.isEmpty(); n++) {
@@ -168,7 +182,7 @@ public final class NativeGame {
         if (bot.targets.isEmpty()) return;
         int dock = key(width/2, height+1);
         List<Point> segment = path(f, dock); bot.route.addAll(segment.subList(1, segment.size())); bot.route.add(truckPoint());
-        c.remaining -= bot.targets.size(); c.mega = false; bots.add(bot);
+        c.remaining -= bot.targets.size(); c.mega = false; c.lastSpawnAt=time; bots.add(bot);
         if (bot.kind == 1) megaAt = time;
         event(bot.kind == 1 ? "mega" : "mini", c.color, bot.x, bot.y);
     }
@@ -196,6 +210,7 @@ public final class NativeGame {
             }
         }
         for (Bot bot : bots) {
+            if(bot.phase==5){int slot=slots.indexOf(capsule(bot.capsuleId));if(slot>=0){Point p=origin(slot);bot.x=p.x;bot.y=p.y;}bot.phaseTime+=dt;if(bot.phaseTime>=LAUNCH_TIME){bot.phase=0;bot.phaseTime=0;}continue;}
             if(bot.phase==3){bot.phaseTime+=dt;if(bot.phaseTime>=.30)bot.phase=4;continue;}
             if (bot.phase == 1) {
                 bot.phaseTime += dt;
@@ -232,7 +247,10 @@ public final class NativeGame {
             if(c!=null&&workers(c.id)==0&&(c.remaining==0||completedColors[c.color]||remainingBlocks()==0)){slots.set(i,null);addGauge(8);event("complete",c.color,0,0);}
         }
         spawnClock+=dt;
-        if(spawnClock>=.28){spawnClock=0;for(int i=0;i<slots.size();i++)if(slots.get(i)!=null)spawn(slots.get(i),i);}
+        if(level.autoFinish&&!finishing){int waiting=0,free=0;for(Capsule c:queue)if(!c.taken)waiting++;for(Capsule c:slots)if(c==null)free++;
+            if(waiting<5&&waiting<=free){boolean progress=true;while(progress){progress=false;for(Capsule c:queue)if(!c.taken&&unlocked(c)&&select(c.id)){progress=true;break;}}boolean all=true;for(Capsule c:queue)if(!c.taken)all=false;if(all){finishing=true;event("finishRush",-1,0,0);}}
+        }
+        if(spawnClock>=SPAWN_INTERVAL){spawnClock=0;for(int n=0;n<slots.size();n++){int i=spawnSlot++%slots.size();Capsule c=slots.get(i);if(c!=null){int before=bots.size();spawn(c,i);if(bots.size()>before)break;}}}
         if(remainingBlocks()==0&&bots.isEmpty()){
             if(truckState==0&&truckCargo>0)departTruck();
             if(truckCargo==0&&truckState!=1){status=WON;event("won",-1,0,0);}
@@ -253,7 +271,7 @@ public final class NativeGame {
     }
     public synchronized boolean clearColor(int color, boolean unlimited) {
         if (paused || status == WON || (colorClearUsed && !unlimited) || color < 0 || color >= COLORS.length) return false;
-        boolean any = false; for (Block b : blocks) if (!b.removed && b.color == color) { remove(b.id); any = true; }
+        boolean any = false; for (Block b : blocks) if (!b.removed && b.color == color) { remove(b.id);clearedByItem++; any = true; }
         if (!any) return false; colorClearUsed = true; status = PLAYING; return true;
     }
     public synchronized boolean shuffle() {
@@ -270,6 +288,6 @@ public final class NativeGame {
     }
     public synchronized boolean pullOut(int id) {
         Capsule c = capsule(id); if (paused || status == WON || c == null || c.taken || unlocked(c)) return false;
-        int front=c.depth;for(Capsule q:queue)if(!q.taken&&q.lane==c.lane)front=Math.min(front,q.depth);c.depth=front-1;c.blockedBy=new int[0]; status = PLAYING; return true;
+        for(Capsule member:selectionGroup(c)){int front=member.depth;for(Capsule q:queue)if(!q.taken&&q.lane==member.lane)front=Math.min(front,q.depth);member.depth=front-1;member.blockedBy=new int[0];} status = PLAYING; return true;
     }
 }

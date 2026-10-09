@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 /** Native local progress. Reads old localStorage JSON once when upgrading. */
 public final class PlayerSave {
     private final SharedPreferences prefs;
-    public int current, unlocked, coins;
+    public int current, unlocked, coins, streak, lastStreakBonus;
     public boolean music, sound, vibration, unlimitedItems;
     public float musicVolume, soundVolume;
     public final int[] boosters = new int[4];
@@ -18,6 +18,7 @@ public final class PlayerSave {
         if (!prefs.contains("initialized")) migrateLegacy(context);
         current = clamp(prefs.getInt("current", 1), 1, LevelLoader.TOTAL); unlocked = clamp(prefs.getInt("unlocked", 1), current, LevelLoader.TOTAL);
         coins = Math.max(0, prefs.getInt("coins", 300));
+        streak=Math.max(0,prefs.getInt("streak",0));
         music = prefs.getBoolean("music", true); sound = prefs.getBoolean("sound", true); vibration = prefs.getBoolean("vibration", true);
         unlimitedItems = prefs.getBoolean("unlimitedItems", false);
         musicVolume = prefs.getFloat("musicVolume", .35f); soundVolume = prefs.getFloat("soundVolume", .65f);
@@ -26,7 +27,7 @@ public final class PlayerSave {
     }
     private static int clamp(int n, int min, int max) { return Math.max(min, Math.min(max, n)); }
     public void persist() {
-        SharedPreferences.Editor e = prefs.edit().putBoolean("initialized", true).putInt("current", current).putInt("unlocked", unlocked).putInt("coins", coins)
+        SharedPreferences.Editor e = prefs.edit().putBoolean("initialized", true).putInt("current", current).putInt("unlocked", unlocked).putInt("coins", coins).putInt("streak",streak)
                 .putBoolean("music", music).putBoolean("sound", sound).putBoolean("vibration", vibration).putBoolean("unlimitedItems", unlimitedItems).putFloat("musicVolume", musicVolume).putFloat("soundVolume", soundVolume);
         for (int i = 0; i < 4; i++) e.putInt("booster" + i, boosters[i]); e.apply();
     }
@@ -36,11 +37,11 @@ public final class PlayerSave {
     public String boosterCount(int which) { return unlimitedItems ? "∞" : String.valueOf(boosters[which]); }
     public float record(int level) { return prefs.getFloat("record" + level, 0); }
     public int win(NativeGame game) {
-        int id = game.level.id, reward = cleared(id) ? game.level.reward / 4 : game.level.reward;
+        int id = game.level.id;boolean first=!cleared(id);lastStreakBonus=first?Math.min(++streak,5)*10:0;int reward=(first?game.level.reward:game.level.reward/4)+lastStreakBonus;
         float best = record(id); if (best == 0 || game.time < best) prefs.edit().putFloat("record" + id, (float)game.time).apply();
         coins += reward; unlocked = Math.max(unlocked, Math.min(LevelLoader.TOTAL, id + 1)); current = Math.min(LevelLoader.TOTAL, id + 1); persist(); return reward;
     }
-    public void reset() { prefs.edit().clear().commit(); current = unlocked = 1; coins = 300; music = sound = vibration = true; unlimitedItems = false; musicVolume = .35f; soundVolume = .65f; for(int i=0;i<4;i++)boosters[i]=i==1?2:3; persist(); }
+    public void reset() { prefs.edit().clear().commit(); current = unlocked = 1; coins = 300;streak=lastStreakBonus=0; music = sound = vibration = true; unlimitedItems = false; musicVolume = .35f; soundVolume = .65f; for(int i=0;i<4;i++)boosters[i]=i==1?2:3; persist(); }
     private void migrateLegacy(Context context) {
         File directory = new File(context.getApplicationInfo().dataDir, "app_webview/Default/Local Storage/leveldb");
         File[] files = directory.listFiles((dir,name) -> name.endsWith(".log") || name.endsWith(".ldb")); if (files == null) return;

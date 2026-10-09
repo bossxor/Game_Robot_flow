@@ -54,7 +54,9 @@ function containers(board){
 await mkdir('public/construction-levels',{recursive:true});
 for(let id=1;id<=500;id++){
   const size=id<=2?20:48,board=picture(id,size),blocks=board.flatMap((r,y)=>r.map((color,x)=>({x,y,color:colors[color]})));
-  const level={levelId:id,name:names[(id-1)%10],board:{width:size,height:size},slotCount:5,revealDepth:100,reward:100+Math.floor(id/10)*10,powerRobotChance:0,megaRobot:{requiredGauge:100,blockCount:8},blocks,containers:containers(board)};
+  const difficulty=id%10===0?2:id%5===0?1:0,capsules=containers(board);
+  if(difficulty){for(let i=0;i<capsules.length-1;i++){const a=capsules[i],count=difficulty===2?3:2,members=capsules.slice(i,i+count);if(members.length===count&&members.every(c=>c.depth===a.depth&&c.color===a.color)){for(const c of members)c.group=a.id;i+=count-1;}}}
+  const level={levelId:id,name:names[(id-1)%10],difficulty,theme:Math.floor((id-1)/10)%3,autoFinish:true,board:{width:size,height:size},slotCount:5,revealDepth:100,reward:100+Math.floor(id/10)*10+difficulty*30,powerRobotChance:0,megaRobot:{requiredGauge:100,blockCount:8},blocks,containers:capsules};
   const path=`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,text=JSON.stringify(level)+'\n';
   const previous=await readFile(path,'utf8').catch(error=>{if(error.code==='ENOENT')return null;throw error;});
   if(previous!==text)await writeFile(path,text);

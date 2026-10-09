@@ -58,12 +58,14 @@ export class Game {
     this.spawnClock = 0; this.jobId = 0; this.colorClearUsed = false;
     this.completedColors = new Set();
     this.construction = level.board.width > 16;
+    this.finishing=false;this.spawnSlot=0;
     this.truckCargo = 0; this.truckPending = 0; this.truckTime = 0; this.truckState = 'loading'; this.delivered = 0;
     this.refreshReachable();
   }
   get remainingBlocks() { return this.blocks.filter(b => !b.removed).length; }
   isUnlocked(c) {
     if (c.taken) return false;
+    if(this.construction&&this.queue.some(p=>!p.taken&&p.lane===c.lane&&p.depth<c.depth))return false;
     if (c.blockedBy) return c.blockedBy.every(id => this.queue.find(p => p.id === id)?.taken);
     return !this.queue.some(p => !p.taken && p.depth < c.depth);
   }
@@ -71,7 +73,7 @@ export class Game {
     const depth = Math.min(...this.queue.filter(p => !p.taken).map(p => p.depth));
     return this.isUnlocked(c) || c.depth - depth <= (this.level.revealDepth ?? 100);
   }
-  slotOrigin(index) { return { x: (index + 0.5) * (this.width + 1) / this.slots.length - 0.5, y: this.height + 2.6 }; }
+  slotOrigin(index) { return { x: this.construction?(this.width-1)/2+(index-(this.slots.length-1)/2)*60/384*this.width/.762:(index + 0.5) * (this.width + 1) / this.slots.length - 0.5, y: this.height + 2.6 }; }
   // A padded grid joins all four outside edges. Only empty cells are walkable.
   flood(start = { x: -1, y: this.height + 1 }) {
     const occupied = new Set(this.blocks.filter(b => !b.removed).map(b => `${b.x},${b.y}`));
@@ -93,9 +95,12 @@ export class Game {
   }
   available(color) { return this.blocks.filter(b => !b.removed && !b.reserved && b.reachable && (!color || b.color === color)); }
   addGauge(n) { this.gauge = Math.min(this.level.megaRobot.requiredGauge, this.gauge + n); }
+  selectionGroup(c){return c?this.queue.filter(q=>!q.taken&&(q===c||(c.group&&q.group===c.group))):[];}
+  risky(c){const group=this.selectionGroup(c);return group.length===this.slots.filter(c=>!c).length&&group.every(c=>!this.available(c.color).length);}
   select(id) {
     if (this.status !== 'playing' || this.paused) return false;
     const c = this.queue.find(c => c.id === id), index = this.slots.indexOf(null);
+    if(this.construction){const group=this.selectionGroup(c);if(!group.length||this.slots.filter(c=>!c).length<group.length||group.some(c=>!this.isUnlocked(c)))return false;for(const q of group){q.taken=true;q.selectedAt=this.time;q.mega=this.gauge>=this.level.megaRobot.requiredGauge;if(q.mega)this.gauge=0;this.slots[this.slots.indexOf(null)]=q;if(this.available(q.color).length)this.addGauge(15);}this.moves++;this.onEvent({type:'select',color:c.color});return true;}
     if (!c || !this.isUnlocked(c) || index < 0) return false;
     c.taken = true; c.mega = this.gauge >= this.level.megaRobot.requiredGauge;
     if (c.mega) this.gauge = 0;
@@ -106,7 +111,7 @@ export class Game {
     return true;
   }
   spawn(c, index) {
-    if (c.remaining <= 0 || this.jobs.filter(j => j.containerId === c.id).length >= (this.construction ? Math.round(8*Math.max(1,this.width/32)) : 6)) return;
+    if (c.remaining <= 0 || this.jobs.filter(j => j.containerId === c.id).length >= (this.construction ? 4 : 6) || (this.construction&&this.time-c.selectedAt<.65)) return;
     const origin = this.slotOrigin(index);
     let start = { x: Math.max(-1, Math.min(this.width, Math.round(origin.x))), y: this.height + 2 };
     let flood = this.flood(start), targets = this.available(c.color);
@@ -126,13 +131,14 @@ export class Game {
       targets = targets.filter(t => t.id !== b.id); start = p; flood = this.flood(start);
     }
     if (!selected.length) return;
-    const destination = this.construction ? {x:(this.width-1)/2,y:this.height+2.6} : origin;
-    const returnStart = { x: Math.max(-1, Math.min(this.width, Math.round(destination.x))), y: this.height + 2 };
+    const destination = this.construction ? {x:(this.width-1)/2,y:this.height+1.8} : origin;
+    const returnStart = { x: Math.max(-1, Math.min(this.width, Math.round(destination.x))), y: this.height + (this.construction?1:2) };
     let cursor = returnStart; const returnPath = [];
     while (cursor) { returnPath.push(cursor); cursor = flood.parents.get(`${cursor.x},${cursor.y}`); }
     route.push(...returnPath.reverse().slice(1), destination);
     c.remaining -= this.construction ? selected.length : 1; c.mega = false; c.hasWorked = true;
-    this.jobs.push({ id: this.jobId++, containerId: c.id, color: c.color, type, x: origin.x, y: origin.y, route, step: 0, selected, collected: 0 });
+    c.lastSpawnAt=this.time;
+    this.jobs.push({ id: this.jobId++, containerId: c.id, slot:index, launchUntil:this.construction?this.time+.6:0, color: c.color, type, x: origin.x, y: origin.y, route, step: 0, selected, collected: 0 });
     if (type === 'power') this.addGauge(5);
     this.onEvent({ type, color: c.color });
   }
@@ -153,6 +159,7 @@ export class Game {
     if (this.paused || this.status !== 'playing') return;
     dt = Math.max(0, Math.min(dt, 0.1)); this.time += dt;
     for (const j of this.jobs) {
+      if(this.time<j.launchUntil)continue;
       let travel = dt * (this.construction ? (j.type === 'mega' ? 3.8 : 5.2)*Math.max(1,this.width/32) : (j.type === 'mega' ? 10 : 14));
       while (travel > 0 && j.step < j.route.length) {
         const p = j.route[j.step], distance = Math.hypot(p.x - j.x, p.y - j.y);
@@ -168,7 +175,7 @@ export class Game {
       if(this.truckState==='loading'){
         const load=Math.min(20-this.truckCargo,this.truckPending);this.truckCargo+=load;this.truckPending-=load;
         if(this.truckCargo===20 || (this.remainingBlocks===0 && !this.jobs.length && this.truckCargo>0)){this.truckState='leaving';this.truckTime=0;}
-      }else if((this.truckTime+=dt)>=1.4){this.truckState='loading';this.truckTime=0;this.truckCargo=0;}
+      }else if((this.truckTime+=dt)>=(this.truckState==='entering'?.5:1.4)){const leaving=this.truckState==='leaving';this.truckState=leaving&&(this.remainingBlocks||this.truckPending||this.jobs.length)?'entering':'loading';this.truckTime=0;this.truckCargo=0;}
     }
     for (let i = 0; i < this.slots.length; i++) {
       const c = this.slots[i];
@@ -177,9 +184,10 @@ export class Game {
       }
     }
     this.spawnClock += dt;
-    if (this.spawnClock >= 0.13) {
+    if(this.construction&&this.level.autoFinish&&!this.finishing){const waiting=this.queue.filter(c=>!c.taken);if(waiting.length<5&&waiting.length<=this.slots.filter(c=>!c).length){let next;while((next=this.queue.find(c=>!c.taken&&this.isUnlocked(c)))&&this.select(next.id)){}if(this.queue.every(c=>c.taken)){this.finishing=true;this.onEvent({type:'finishRush'});}}}
+    if (this.spawnClock >= (this.construction?.52:.13)) {
       this.spawnClock = 0;
-      this.slots.forEach((c, i) => { if (c) this.spawn(c, i); });
+      if(this.construction){for(let n=0;n<this.slots.length;n++){const i=this.spawnSlot++%this.slots.length,c=this.slots[i];if(c){const before=this.jobs.length;this.spawn(c,i);if(this.jobs.length>before)break;}}}else this.slots.forEach((c, i) => { if (c) this.spawn(c, i); });
     }
     if (this.remainingBlocks === 0 && this.jobs.length === 0){if(!this.construction || (!this.truckCargo && !this.truckPending && this.truckState==='loading'))this.finish('won');}
     else if (!this.jobs.length) {
@@ -213,6 +221,6 @@ export class Game {
     if (this.paused || this.status === 'won') return false;
     const c = this.queue.find(c => c.id === id);
     if (!c || c.taken || this.isUnlocked(c)) return false;
-    c.blockedBy = []; c.depth = 0; this.revive(); return true;
+    if(this.construction)for(const q of this.selectionGroup(c)){q.blockedBy=[];q.depth=Math.min(q.depth,...this.queue.filter(p=>!p.taken&&p.lane===q.lane).map(p=>p.depth))-1;}else{c.blockedBy = []; c.depth = 0;}this.revive(); return true;
   }
 }

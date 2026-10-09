@@ -22,6 +22,7 @@ public final class LevelLoader {
         JSONObject json = new JSONObject(text), board = json.getJSONObject("board");
         NativeGame.Level level = new NativeGame.Level(); level.id = json.getInt("levelId"); level.name = json.optString("name", "로봇 공장");
         level.width = board.getInt("width"); level.height = board.getInt("height"); level.slotCount = json.optInt("slotCount", 5);
+        level.difficulty=json.optInt("difficulty",0);level.theme=json.optInt("theme",0);level.autoFinish=json.optBoolean("autoFinish",false);
         level.powerChance = json.optDouble("powerRobotChance", .1); level.revealDepth = json.optInt("revealDepth", 100); level.reward = json.optInt("reward", 100);
         JSONObject mega = json.getJSONObject("megaRobot"); level.megaRequired = mega.getInt("requiredGauge"); level.megaCapacity = mega.getInt("blockCount");
         JSONArray blocks = json.getJSONArray("blocks"), capsules = json.getJSONArray("containers");
@@ -29,6 +30,7 @@ public final class LevelLoader {
         for (int i = 0; i < capsules.length(); i++) {
             JSONObject c = capsules.getJSONObject(i); NativeGame.Capsule capsule = new NativeGame.Capsule(c.getInt("id"), color(c.getString("color")), c.getInt("robotCount"), c.optInt("depth", 0));
             capsule.lane = c.optInt("lane", i % 4); capsule.powerChance = c.optDouble("specialRobotChance", -1);
+            capsule.group=c.optInt("group",0);
             JSONArray parents = c.optJSONArray("blockedBy");
             if (parents != null) { capsule.blockedBy = new int[parents.length()]; for (int j = 0; j < parents.length(); j++) capsule.blockedBy[j] = parents.getInt(j); }
             else for (NativeGame.Capsule p : level.capsules) if (p.depth < capsule.depth) { int[] next = java.util.Arrays.copyOf(capsule.blockedBy, capsule.blockedBy.length + 1); next[next.length - 1] = p.id; capsule.blockedBy = next; }

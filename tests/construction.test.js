@@ -17,3 +17,12 @@ test('Large board color clear loads every block once and waits for final truck',
 test('Unlimited item state persists and progression crosses the previous last level',()=>{
  const s=defaults();s.unlimitedItems=true;s.highestUnlockedLevel=200;recordWin(s,200,100,10,100);const loaded=sanitizeSave(s);assert.equal(loaded.unlimitedItems,true);assert.equal(loaded.lastLevel,201);assert.deepEqual(loaded.boosters,s.boosters);
 });
+test('Linked containers enter atomically and pull-out moves the whole linked group',async()=>{
+ const l=await load(10),g=new Game(l);const linked=g.queue.filter(c=>c.group);assert.ok(linked.length);const front=linked[0];for(const q of g.queue)if(q.group===front.group){q.depth=2;q.blockedBy=[g.queue.find(c=>!c.group).id];}assert.ok(g.pullOut(front.id));const group=g.selectionGroup(front);assert.ok(group.every(c=>g.isUnlocked(c)));while(g.slots.filter(c=>!c).length>=group.length)g.slots[g.slots.indexOf(null)]={color:'red',remaining:0};assert.equal(g.select(front.id),false);assert.ok(group.every(c=>!c.taken));g.slots.fill(null);assert.ok(g.select(front.id));assert.equal(g.slots.filter(Boolean).length,group.length);g.update(.1);assert.equal(g.jobs.length,0);
+});
+test('A small final queue autofills and enters the 3x finishing state',async()=>{
+ const l=await load(1);l.containers=l.containers.slice(0,3);l.blocks=l.containers.flatMap((c,i)=>Array.from({length:c.robotCount},(_,j)=>({x:j%20,y:i*2+Math.floor(j/20),color:c.color})));const g=new Game(l);g.update(.1);assert.ok(g.finishing);assert.ok(g.queue.every(c=>c.taken));
+});
+test('Streak bonus caps at 50 and repeating a cleared stage adds no streak bonus',()=>{
+ const s=defaults();for(let i=1;i<=7;i++)recordWin(s,i,10,1,100);assert.equal(s.streak,7);assert.equal(s.lastStreakBonus,50);const before=s.coins;recordWin(s,7,11,1,100);assert.equal(s.lastStreakBonus,0);assert.equal(s.coins-before,25);
+});

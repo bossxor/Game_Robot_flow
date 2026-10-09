@@ -50,7 +50,7 @@ public final class MainActivity extends Activity {
     private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private GradientDrawable background(int color,float radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
     private TextView text(String value,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setGravity(Gravity.CENTER);t.setIncludeFontPadding(false);return t;}
-    private Button button(String label,boolean primary,Runnable action){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(14);b.setTextColor(primary?LIME:INK);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(GameSheet.ripple(this,primary?INK:0xffefe2d1,16));b.setStateListAnimator(null);b.setMinHeight(0);b.setMinimumHeight(0);b.setPadding(dp(12),0,dp(12),0);b.setOnClickListener(v->{effect("click");action.run();});return b;}
+    private Button button(String label,boolean primary,Runnable action){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(14);b.setTextColor(INK);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(GameSheet.ripple(this,primary?LIME:0xffefe2d1,16));b.setStateListAnimator(null);b.setMinHeight(0);b.setMinimumHeight(0);b.setPadding(dp(12),0,dp(12),0);b.setOnClickListener(v->{effect("click");action.run();});return b;}
     private void gap(LinearLayout layout,int height){layout.addView(new View(this),new LinearLayout.LayoutParams(1,dp(height)));}
     private void dismiss(){if(dialog!=null){dialog.setOnDismissListener(null);dialog.dismiss();dialog=null;}}
     private void rebuild(String mode){
@@ -59,14 +59,14 @@ public final class MainActivity extends Activity {
     }
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
-        game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
+        if(game!=null&&game.status!=NativeGame.WON&&!inspect){save.streak=0;save.persist();}game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
         LinearLayout brand=new LinearLayout(this);brand.setGravity(Gravity.CENTER_VERTICAL);brand.setPadding(dp(20),dp(12),dp(20),dp(8));
         ImageView image=new ImageView(this);image.setImageResource(R.drawable.robot_flow_icon);image.setBackground(background(INK,12));image.setClipToOutline(true);brand.addView(image,new LinearLayout.LayoutParams(dp(40),dp(40)));
         brand.addView(text("ROBOT FLOW",22,INK,true),new LinearLayout.LayoutParams(0,dp(46),1));brand.addView(text("◈ "+save.coins,12,MUTED,true));content.addView(brand,new LinearLayout.LayoutParams(-1,dp(72)));
-        try{scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),1)),true);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));}catch(Exception error){toast(error.getMessage());}
+        try{scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));}catch(Exception error){toast(error.getMessage());}
         LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(22),dp(12),dp(22),dp(16));
-        bottom.addView(text(String.format(Locale.KOREA,"STAGE %03d",save.current),15,MUTED,true),new LinearLayout.LayoutParams(-1,dp(28)));
-        gap(bottom,8);bottom.addView(button("플레이",true,()->startLevel(save.current)),new LinearLayout.LayoutParams(-1,dp(54)));gap(bottom,12);
+        bottom.addView(text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0]),15,INK,true),new LinearLayout.LayoutParams(-1,dp(28)));
+        if(save.streak>0)brand.addView(text("  "+save.streak+"연승",11,0xffbe945e,true));gap(bottom,8);bottom.addView(button("플레이",true,()->startLevel(save.current)),new LinearLayout.LayoutParams(-1,dp(54)));gap(bottom,12);
         LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};
         int[] navIcons={9,11,0,10};
         for(int i=0;i<4;i++){final int n=i;GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(56),1);if(i>0)lp.leftMargin=dp(8);links.addView(icon,lp);}
@@ -76,19 +76,19 @@ public final class MainActivity extends Activity {
     private void startLevel(int id){
         if(id<1||id>LevelLoader.TOTAL||(!inspect&&id>save.unlocked))return;
         try {
-            NativeGame next=new NativeGame(LevelLoader.load(getAssets(),id));
+            if(game!=null&&game.status==NativeGame.PLAYING&&!inspect){save.streak=0;save.persist();}NativeGame next=new NativeGame(LevelLoader.load(getAssets(),id));
             if(game!=null)game.listener=null;rebuild("game");game=next;resultShown=false;if(!inspect){save.current=id;save.persist();}
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final NativeGame owner=game;
-            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("won")||type.equals("lost"))showResult();}});
+            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 3배속");}});
             header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
-            scene=new NativeScene(this,game,false);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
+            scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.clearMode=false;consume(1);}else toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
             float available=(root.getHeight()>0?root.getHeight()-root.getPaddingBottom():getResources().getDisplayMetrics().heightPixels)/getResources().getDisplayMetrics().density;
             float screenWidth=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
             int controlHeight=Math.round(GameLayout.controlsHeight(screenWidth,available));
             content.addView(controls,new LinearLayout.LayoutParams(-1,dp(controlHeight)));
-            if(!getPreferences(MODE_PRIVATE).getBoolean("constructionTutorial",false)){
+            if(game.level.difficulty>0)toast(game.level.difficulty==2?"SUPER HARD · 묶음 작업에 도전하세요":"HARD · 작업 순서를 살펴보세요");if(!getPreferences(MODE_PRIVATE).getBoolean("constructionTutorial",false)){
                 synchronized(game){game.paused=true;}
                 dialog=new GameSheet(this,"","현장에 오신 걸 환영해요","",false);
                 dialog.card("01","같은 색을 선택하세요","각 열의 맨 앞 컨테이너를 선택하세요.\n같은 색 로봇이 블록을 회수합니다.",0xffb7dbe2);
@@ -103,28 +103,21 @@ public final class MainActivity extends Activity {
         if(key.equals("home")){confirmLeave();return;}
         if(key.equals("pause")){showPause();return;}
         synchronized(game){
-            if(key.equals("speed")){scene.speed=scene.speed==1?2:1;header.speed=scene.speed;header.invalidate();return;}
+            if(key.equals("speed")){if(game.finishing)return;scene.speed=scene.speed==1?2:1;header.speed=scene.speed;header.invalidate();return;}
             if(key.equals("queue-page")){controls.page=Math.max(0,controls.page+value);controls.invalidate();return;}
             if(key.equals("capsule")){
                 if(controls.pullMode){if(save.hasBooster(3)&&game.pullOut(value)){save.consumeBooster(3);controls.pullMode=false;effect("select");}else toast("뒤쪽에 잠긴 컨테이너를 선택하세요.");}
-                else if(!game.select(value))toast(game.slots.contains(null)?"이 열의 맨 앞 컨테이너를 선택하세요.":"작업 중인 컨테이너가 끝나면 선택할 수 있어요.");
+                else if(!game.select(value))toast("묶음 전체가 들어갈 빈칸과 맨 앞 컨테이너를 확인하세요.");
             }else if(key.equals("booster"))useBooster(value);
             if(controls!=null)controls.invalidate();
         }
     }
     private void useBooster(int which){
-        if(!save.hasBooster(which)){toast("보유 아이템이 없어요. 메인 아이템 메뉴에서 구매할 수 있어요.");return;}
-        if(which==1){
-            ArrayList<Integer> colors=new ArrayList<>();for(int color=0;color<NativeGame.COLORS.length;color++){boolean found=false;for(NativeGame.Block b:game.blocks)if(!b.removed&&b.color==color)found=true;if(found)colors.add(color);}
-            final NativeGame owner=game;owner.paused=true;dismiss();dialog=new GameSheet(this,"","어떤 색을 회수할까요?",save.unlimitedItems?"선택한 색의 블록을 모두 회수해요. 무제한 모드 적용 중.":"선택한 색의 블록을 모두 회수해요. 스테이지당 1회.",true);dialog.onClose(()->owner.paused=false);
-            for(int color:colors){final int selected=color;dialog.secondary("●  "+NativeGame.COLOR_NAMES[color],()->{dismiss();owner.paused=false;if(game==owner&&owner.clearColor(selected,save.unlimitedItems))consume(1);else toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");});}
-            dialog.secondary("돌아가기",()->{dismiss();owner.paused=false;});dialog.show();return;
-        }
-        if(which==3){controls.pullMode=!controls.pullMode;controls.invalidate();if(controls.pullMode)toast("잠긴 컨테이너를 선택하세요. 다시 누르면 취소돼요.");return;}
-        final NativeGame owner=game;owner.paused=true;dismiss();
-        dialog=new GameSheet(this,"",which==0?"슬롯을 하나 더 열까요?":"순서를 바꿔볼까요?",save.unlimitedItems?"아이템 무제한 모드 · 보유 수량은 줄어들지 않아요.":"보유 부스터 "+save.boosters[which]+"개 · 사용하면 1개가 차감돼요.",true);
-        dialog.card(which==0?0:2,which==0?"출격 공간 +1":"새로운 출격 순서",which==0?"활성 슬롯을 1개 추가해요. 최대 6개까지\n열 수 있고 이번 스테이지에만 적용돼요.":"남은 컨테이너의 순서를 섞어요.\n현재 작업 중인 로봇은 계속 회수해요.",LIME);
-        dialog.onClose(()->owner.paused=false);dialog.primary("부스터 사용",()->{dismiss();owner.paused=false;if(game!=owner)return;boolean used=which==0?owner.extraSlot():owner.shuffle();if(used)consume(which);else toast(which==0?"슬롯은 최대 6개입니다.":"섞을 컨테이너가 부족해요.");});dialog.secondary("돌아가기",()->{dismiss();owner.paused=false;});dialog.show();
+        if(!save.hasBooster(which)){toast("보유 아이템이 없어요.");return;}
+        if(which==1){controls.clearMode=!controls.clearMode;controls.pullMode=false;scene.clearMode=controls.clearMode;if(controls.clearMode)toast("없앨 색의 블록을 터치하세요.");return;}
+        if(which==3){controls.pullMode=!controls.pullMode;controls.clearMode=false;scene.clearMode=false;if(controls.pullMode)toast("꺼낼 컨테이너를 선택하세요.");return;}
+        controls.clearMode=controls.pullMode=false;scene.clearMode=false;
+        boolean used=which==0?game.extraSlot():game.shuffle();if(used)consume(which);else toast(which==0?"작업 공간은 최대 6칸입니다.":"섞을 컨테이너가 부족해요.");
     }
     private void consume(int which){save.consumeBooster(which);if(controls!=null)controls.invalidate();effect("power");toast("부스터를 사용했어요.");}
     private void showPause(){
@@ -146,11 +139,11 @@ public final class MainActivity extends Activity {
     }
     private void showResult(){
         if(game==null||resultShown)return;resultShown=true;boolean won=game.status==NativeGame.WON;int id=game.level.id;
-        int reward=won&&!inspect?save.win(game):0;dismiss();
+        if(!won&&!inspect){save.streak=0;save.persist();}int reward=won&&!inspect?save.win(game):0;dismiss();
         dialog=new GameSheet(this,won?"MISSION COMPLETE":"ONE MORE TRY",won?"작업 완료":"다시 도전",won?(id==LevelLoader.TOTAL?"새 현장이 준비되면 다시 만나요.":"다음 현장이 열렸어요."):"슬롯이 가득 차서 로봇이 출발하지 못하고 있어요.",false);
         if(won){
             dialog.card("✦","STAGE "+String.format(Locale.KOREA,"%03d",id)+" 완료",String.format(Locale.KOREA,"%d초 · %d회 출격 · %d개 블록 회수",(int)game.time,game.moves,game.collected),LIME);
-            dialog.card("◈","코인 +"+reward,"다음 미션을 위한 부스터를 준비해보세요.",0xfff1d38b);
+            dialog.card("◈","코인 +"+reward,save.lastStreakBonus>0?save.streak+"연속 완료 · 보너스 +"+save.lastStreakBonus+" 포함":"다음 미션을 위한 부스터를 준비해보세요.",0xfff1d38b);
             dialog.primary(id==LevelLoader.TOTAL?"메인":"다음 현장",()->{if(id==LevelLoader.TOTAL)showHome();else startLevel(id+1);});
             dialog.secondary("메인 화면으로",this::showHome);
         }else{
