@@ -56,7 +56,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         position = GLES20.glGetAttribLocation(program, "aPosition"); normal = GLES20.glGetAttribLocation(program, "aNormal"); tintAttribute=GLES20.glGetAttribLocation(program,"aTint");
         mvpUniform = GLES20.glGetUniformLocation(program, "uMvp"); modelUniform = GLES20.glGetUniformLocation(program, "uModel");
         colorUniform = GLES20.glGetUniformLocation(program, "uColor"); normalUniform = GLES20.glGetUniformLocation(program, "uNormal");
-        rounded = boxMesh(.20f, 5); cube = boxMesh(0, 1); tileMesh=boxMesh(.05f,2); sphere = sphereMesh(10, 16); chunks.clear();
+        rounded = boxMesh(.20f, 5); cube = boxMesh(0, 1); tileMesh=boxMesh(.05f,2); sphere = sphereMesh(preview?16:10, preview?24:16); chunks.clear();
         GLES20.glEnable(GLES20.GL_DEPTH_TEST); GLES20.glDepthFunc(GLES20.GL_LEQUAL);
         GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
         previous = SystemClock.elapsedRealtimeNanos();
@@ -64,7 +64,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     @Override public void onSurfaceChanged(GL10 gl, int width, int height) { this.width = width; this.height = Math.max(height, 1); GLES20.glViewport(0, 0, width, height); }
     @Override public void onDrawFrame(GL10 gl) {
         long frameStart=SystemClock.elapsedRealtimeNanos();long now = frameStart; double dt = Math.max(0, Math.min(.04, (now - previous) / 1e9)); previous = now;
-        float[] sky=rgb(new int[]{0xfff1dfbd,0xfff3d5c2,0xffc5d1de}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        float[] sky=preview?rgb(0xfff7eddf):rgb(new int[]{0xfff1dfbd,0xfff3d5c2,0xffc5d1de}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glUseProgram(program); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
         NativeGame g = game; if (g == null || width == 0) return;
         synchronized (g) {
@@ -87,13 +87,9 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
             Matrix.orthoM(projection,0,-half,half,-half/aspect,half/aspect,.1f,300);
             Matrix.setLookAtM(view,0,0,sceneWidth*1.875f,sceneWidth*1.25f,0,0,sceneWidth*.146875f,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);portalZ=ground(0,-.92f)[2];if(game!=null)game.portalSpan=half*2;return;
         }
-        float halfHeight = home ? 3.4f : sceneDepth * .32f + .7f;
-        float distance = Math.max(sceneWidth / 2 / aspect, halfHeight) / (float)Math.tan(Math.toRadians(fov / 2)) * 1.15f;
-        Matrix.perspectiveM(projection, 0, fov, aspect, .3f, 100);
-        float targetZ = home ? 0 : 1.2f;
-        float shake = !home && game.time - game.megaAt < .45 ? (float)Math.sin(clock * 85) * .05f : 0;
-        Matrix.setLookAtM(view, 0, shake, distance * .80f, targetZ + distance * .60f, 0, home ? .8f : 0, targetZ, 0, 1, 0);
-        Matrix.multiplyMM(vp, 0, projection, 0, view, 0);
+        float halfWidth=4.8f;Matrix.orthoM(projection,0,-halfWidth,halfWidth,-halfWidth/aspect,halfWidth/aspect,.1f,100);
+        Matrix.setLookAtM(view,0,0,13,17,0,1.0f,0,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);
+
     }
     private void draw(Mesh mesh, float x, float y, float z, float sx, float sy, float sz, float rotation, float[] color) {
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER,0);
@@ -218,14 +214,20 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         draw(mesh, x + (px*cos+pz*sin)*scale, .21f+py*scale, z + (-px*sin+pz*cos)*scale, sx*scale, sy*scale, sz*scale, angle, color);
     }
     private void drawPreview() {
-        draw(rounded,0,-.2f,0,8,.4f,6,0,rgb(new int[]{0xffecd4ab,0xffe9c3a6,0xffaab9c8}[game.level.theme]));
-        draw(sphere,-2.4f,3.0f,-3.1f,1.3f,1.3f,.25f,0,rgb(game.level.theme==2?0xfffff3df:0xffffca76));
-        draw(cube,0,.02f,1.8f,8,.04f,1.5f,0,rgb(0xff9a9990));
-        robot(-1.6f+(float)Math.sin(clock*.65)*.12f,0,1.6f,rgb(NativeGame.COLORS[3]),0,(float)Math.sin(clock*.5)*10,(float)clock*.55f,true);
-        robot(1.6f,0,1.7f,rgb(NativeGame.COLORS[2]),1,-10,(float)clock*.50f,true);
-        truck((float)(clock%10)-5,2.1f,.48f,(float)clock,Arrays.asList(0,1,2,3));
-        crane(3,-2,3);for(int i=0;i<4;i++)cone(-3.5f+i*2.2f,2.5f,.6f);
-        for(int i=0;i<5;i++)draw(rounded,(i-2)*.75f,.35f,-1.9f,.6f,.6f,.6f,0,rgb(NativeGame.COLORS[i]));
+        draw(rounded,0,-.65f,0,8.8f,.70f,5.8f,0,rgb(0xff81b9aa));
+        draw(rounded,0,-.25f,0,8.6f,.36f,5.6f,0,rgb(0xffc7e2c4));
+        draw(rounded,0,-.04f,0,8.15f,.12f,5.15f,0,rgb(0xffffebbd));
+        for(int i=0;i<3;i++)draw(sphere,2.7f+(i-1)*.42f,3.4f+(i==1?.18f:0),-2.8f,.95f,.60f,.30f,0,cream);
+        draw(sphere,-3.25f,3.4f,-2.8f,.95f,.95f,.25f,0,rgb(0xffffcb68));
+        crane(3.15f,-2.0f,2.5f);
+        for(int i=0;i<5;i++)draw(rounded,(i-2)*.68f,.28f,-1.9f,.58f,.48f,.55f,(i-2)*8,rgb(NativeGame.COLORS[i]));
+        robot(-1.65f+(float)Math.sin(clock*.65)*.08f,.12f,2.05f,rgb(NativeGame.COLORS[3]),0,-8+(float)Math.sin(clock*.5)*4,(float)clock*.30f,true);
+        robot(1.55f,.20f,2.10f,rgb(NativeGame.COLORS[2]),1,-12,(float)clock*.35f,true);
+        draw(rounded,0,.01f,2.0f,8.1f,.06f,1.05f,0,rgb(0xffccbba0));
+        for(int i=0;i<5;i++)draw(rounded,(i-2)*1.6f,.065f,2.0f,.70f,.02f,.07f,0,cream);
+        truck((float)(clock%12)/12*11-5.5f,2.12f,.48f,(float)clock,Arrays.asList(0,1,2,3));
+        cone(-3.5f,1.6f,.50f);cone(3.55f,1.6f,.50f);
+
     }
     private static class Mesh {
         final FloatBuffer buffer; final int count;

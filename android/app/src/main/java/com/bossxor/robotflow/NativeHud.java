@@ -121,17 +121,19 @@ public final class NativeHud extends View {
             for (NativeGame.Capsule a : game.queue) if (!a.taken && a.lane == lane) row.add(a);
             row.sort(Comparator.comparingInt(a -> a.depth)); lanes.add(row); max = Math.max(max, row.size());
         }
-        int rows=Math.max(2,Math.min(5,(int)((GameLayout.trayTop(logicalHeight)-GameLayout.QUEUE_Y-GameLayout.CARD-GameLayout.CARD_DEPTH)/GameLayout.ROW_STEP)+1));
+        int rows=Math.min(max,GameLayout.rowCapacity(logicalHeight));
         page = Math.min(page, Math.max(0, max - rows));
-        for (int lane = 0; lane < lanes.size(); lane++) for (int row = 0; row < rows; row++) {
-            int index = page + row; if (index >= lanes.get(lane).size()) continue;
-            NativeGame.Capsule a = lanes.get(lane).get(index);
-            float x = GameLayout.columnX(lane, 4), y = GameLayout.QUEUE_Y + row * GameLayout.ROW_STEP;
-            Motion m = position(a.id, x, y, now);
-            card(c, a, m.x, m.y, false, game.unlocked(a), touched("capsule", a.id));
-            if(a.group>0){paint.setShader(null);paint.setColor(0xfffff3df);paint.setStrokeWidth(4);NativeGame.Capsule next=null;for(NativeGame.Capsule other:game.queue)if(!other.taken&&other.group==a.group&&other.lane==a.lane+1&&other.depth==a.depth)next=other;if(next!=null)c.drawLine(x+GameLayout.CARD-2,y+25,x+GameLayout.CARD+GameLayout.GAP+2,y+25,paint);}
-            if(game.unlocked(a)&&game.risky(a)){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffd86c52);paint.setStrokeWidth(2);c.drawRoundRect(x-2,y-2,x+50,y+50,12,12,paint);paint.setStyle(Paint.Style.FILL);}
-            hit((x - 4) * scale, (y - 3) * scale, (GameLayout.CARD + 8) * scale, GameLayout.ROW_STEP * scale, "capsule", a.id);
+        for(int row=0;row<rows;row++){
+            List<NativeGame.Capsule> visible=new ArrayList<>();
+            for(List<NativeGame.Capsule> lane:lanes)if(page+row<lane.size())visible.add(lane.get(page+row));
+            for(int column=0;column<visible.size();column++){
+                NativeGame.Capsule a=visible.get(column);
+                float x=GameLayout.columnX(column,visible.size()),y=GameLayout.QUEUE_Y+row*GameLayout.ROW_STEP;
+                Motion m=position(a.id,x,y,now);card(c,a,m.x,m.y,false,game.unlocked(a),touched("capsule",a.id));
+                if(a.group>0&&column+1<visible.size()&&visible.get(column+1).group==a.group){paint.setShader(null);paint.setColor(0xfffff3df);paint.setStrokeWidth(4);c.drawLine(m.x+GameLayout.CARD-2,m.y+25,m.x+GameLayout.CARD+GameLayout.GAP+2,m.y+25,paint);}
+                if(game.unlocked(a)&&game.risky(a)){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffd86c52);paint.setStrokeWidth(2);c.drawRoundRect(m.x-2,m.y-2,m.x+50,m.y+50,12,12,paint);paint.setStyle(Paint.Style.FILL);}
+                hit((x-4)*scale,(y-3)*scale,(GameLayout.CARD+8)*scale,GameLayout.ROW_STEP*scale,"capsule",a.id);
+            }
         }
         // Draw flying containers after the queue so their move into the work area is readable.
         for (int slot = 0; slot < game.slots.size(); slot++) {

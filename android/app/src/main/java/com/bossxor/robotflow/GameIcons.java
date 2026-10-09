@@ -4,9 +4,15 @@ import android.graphics.*;
 import android.view.View;
 /** Illustrated scalable controls shared by menus and game HUD. */
 final class GameIcons extends View {
+ private boolean home;
  private final int icon; private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
  GameIcons(Context c,int i,String desc,Runnable action){super(c);icon=i;setContentDescription(desc);setFocusable(true);setClickable(true);setBackground(GameSheet.ripple(c,0xfffff7e9,18));if(action!=null)setOnClickListener(v->action.run());else{setClickable(false);setFocusable(false);setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);setBackground(null);}}
- @Override protected void onDraw(Canvas c){super.onDraw(c);draw(c,p,icon,getWidth()/2f,getHeight()/2f,Math.min(getWidth(),getHeight())*.72f);}
+ void homeStyle(){home=true;setBackground(null);}
+ @Override public void setPressed(boolean pressed){super.setPressed(pressed);if(home)animate().scaleX(pressed?.94f:1).scaleY(pressed?.94f:1).setDuration(100).start();}
+ private Shader homeFace;
+ @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){super.onSizeChanged(w,h,oldw,oldh);homeFace=new LinearGradient(0,0,0,h,new int[]{0xfffffcf2,0xffead9bf},null,Shader.TileMode.CLAMP);}
+
+ @Override protected void onDraw(Canvas c){super.onDraw(c);if(home){float w=getWidth(),h=getHeight();p.setColor(0xffceb693);c.drawRoundRect(0,6,w,h,w*.23f,w*.23f,p);p.setShader(homeFace);c.drawRoundRect(0,0,w,h-7,w*.23f,w*.23f,p);p.setShader(null);p.setColor(0x99ffffff);c.drawRoundRect(w*.25f,5,w*.75f,12,5,5,p);draw(c,p,icon,w/2,h/2-3,Math.min(w,h)*.72f);}else draw(c,p,icon,getWidth()/2f,getHeight()/2f,Math.min(getWidth(),getHeight())*.72f);}
  private static void box(Canvas c,Paint p,float x,float y,float w,float h,int col){p.setColor(col);c.drawRoundRect(x,y,x+w,y+h,5,5,p);}
  private static void line(Canvas c,Paint p,float x,float y,float a,float b,int col){p.setColor(col);p.setStrokeWidth(5);p.setStrokeCap(Paint.Cap.ROUND);c.drawLine(x,y,a,b,p);}
  static void draw(Canvas c,Paint p,int id,float x,float y,float size){

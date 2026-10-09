@@ -1,9 +1,9 @@
 # Robot Flow — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-현재 설치 파일: `releases/RobotFlow-v0.7.1-native-3d-debug.apk`
+현재 설치 파일: `releases/RobotFlow-v0.7.2-native-3d-debug.apk`
 
-v0.7.1은 5개 작업 공간 표시, 컨테이너 앞에서 순차 출격, 묶음 대기열, 화면을 터치하는 아이템 조작, 최대 3대의 대기 트럭과 확대된 로봇을 적용했습니다. NORMAL/HARD/SUPER HARD, 마지막 작업 자동 5배속, 연승 보상, 시간대 배경과 움직이는 메인을 포함합니다. [현재 UI·게임 규칙](docs/game-ui-v07.md), [검증 기록](docs/v071-validation.md)
+v0.7.2은 5개 작업 공간 표시, 컨테이너 앞에서 순차 출격, 묶음 대기열, 화면을 터치하는 아이템 조작, 최대 3대의 대기 트럭과 확대된 로봇을 적용했습니다. NORMAL/HARD/SUPER HARD, 마지막 작업 자동 5배속, 연승 보상, 시간대 배경과 움직이는 메인을 포함합니다. 메인은 큰 입체 로고·로봇 두 대·파스텔 받침대·두툼한 플레이 버튼으로 개편했습니다. 대기열은 빈 행·열의 자리를 제거하고 각 행의 남은 컨테이너를 중앙 정렬합니다. [현재 UI·게임 규칙](docs/game-ui-v07.md), [검증 기록](docs/v072-validation.md)
 
 참고 APK는 UI 배치와 조작 흐름 분석에 사용했습니다. 게임 그래픽과 코드는 로봇 테마로 자체 구현하며 참고 APK의 자산을 배포하지 않습니다.
 
@@ -50,7 +50,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RobotFlow-v0.7.1-native-3d-debug.apk
+adb install --user 0 -r releases/RobotFlow-v0.7.2-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 

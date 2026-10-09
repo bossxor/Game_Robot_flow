@@ -20,5 +20,5 @@ function command(name, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);
 }
-command('javac', ['-encoding', 'UTF-8', '-d', '.build/native-tests', 'android/app/src/main/java/com/bossxor/robotflow/NativeGame.java', 'android/app/src/main/java/com/bossxor/robotflow/SecretTapSequence.java', 'tests/native/NativeCoreTests.java']);
+command('javac', ['-encoding', 'UTF-8', '-d', '.build/native-tests', 'android/app/src/main/java/com/bossxor/robotflow/NativeGame.java', 'android/app/src/main/java/com/bossxor/robotflow/SecretTapSequence.java', 'android/app/src/main/java/com/bossxor/robotflow/GameLayout.java', 'tests/native/NativeCoreTests.java']);
 command('java', ['-cp', '.build/native-tests', 'com.bossxor.robotflow.NativeCoreTests', resolve('.build/native-tests/levels.txt')]);

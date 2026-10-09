@@ -27,9 +27,10 @@ public final class MainActivity extends Activity {
     private GameSheet dialog;
     private TextView notice;
     private long lastSound;
-    private int tuneNote;
+    private int tuneNote,maxControlsHeight,targetControlsHeight;
+    private android.animation.ValueAnimator queueResize;
     private final Runnable heartbeat=new Runnable(){@Override public void run(){
-        if(foreground){if(header!=null)header.invalidate();if(controls!=null)controls.invalidate();}
+        if(foreground){if(header!=null)header.invalidate();if(controls!=null){resizeQueue();controls.invalidate();}}
         handler.postDelayed(this,100);
     }};
     private final Runnable musicLoop=new Runnable(){@Override public void run(){
@@ -44,7 +45,8 @@ public final class MainActivity extends Activity {
             if(Build.VERSION.SDK_INT>=30){android.graphics.Insets s=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());v.setPadding(s.left,screen.equals("game")?0:s.top,s.right,s.bottom);}
             else v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;
         });setContentView(root);setupAudio();showHome();handler.post(heartbeat);handler.postDelayed(musicLoop,900);
-        if(BuildConfig.DEBUG&&getIntent().hasExtra("inspect_level")){inspect=true;startLevel(getIntent().getIntExtra("inspect_level",1));}
+        if(BuildConfig.DEBUG&&getIntent().hasExtra("inspect_level")){inspect=true;startLevel(getIntent().getIntExtra("inspect_level",1));
+            if(game!=null&&getIntent().hasExtra("inspect_queue_rows")){int rows=Math.max(0,getIntent().getIntExtra("inspect_queue_rows",4)),columns=Math.max(0,Math.min(4,getIntent().getIntExtra("inspect_queue_columns",4)));synchronized(game){game.paused=true;game.level.autoFinish=false;for(int lane=0;lane<4;lane++){List<NativeGame.Capsule> pending=new ArrayList<>();for(NativeGame.Capsule c:game.queue)if(c.lane==lane)pending.add(c);pending.sort(Comparator.comparingInt(c->c.depth));int kept=lane<columns?Math.min(rows,pending.size()):0;for(int i=0;i<pending.size()-kept;i++)pending.get(i).taken=true;}}}}
         if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);
     }
     private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -54,25 +56,24 @@ public final class MainActivity extends Activity {
     private void gap(LinearLayout layout,int height){layout.addView(new View(this),new LinearLayout.LayoutParams(1,dp(height)));}
     private void dismiss(){if(dialog!=null){dialog.setOnDismissListener(null);dialog.dismiss();dialog=null;}}
     private void rebuild(String mode){
-        dismiss();if(scene!=null)scene.onPause();scene=null;header=controls=null;
+        dismiss();if(queueResize!=null){queueResize.cancel();queueResize=null;}if(scene!=null)scene.onPause();scene=null;header=controls=null;
         screen=mode;root.removeAllViews();notice=null;content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setBackgroundColor(BACK);root.addView(content,new FrameLayout.LayoutParams(-1,-1));root.requestApplyInsets();
     }
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
         if(game!=null&&game.status!=NativeGame.WON&&!inspect){save.streak=0;save.persist();}game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
-        LinearLayout brand=new LinearLayout(this);brand.setGravity(Gravity.CENTER_VERTICAL);brand.setPadding(dp(20),dp(12),dp(20),dp(8));
-        ImageView image=new ImageView(this);image.setImageResource(R.drawable.robot_flow_icon);image.setBackground(background(INK,12));image.setClipToOutline(true);brand.addView(image,new LinearLayout.LayoutParams(dp(40),dp(40)));
-        brand.addView(text("ROBOT FLOW",22,INK,true),new LinearLayout.LayoutParams(0,dp(46),1));brand.addView(text("◈ "+save.coins,12,MUTED,true));content.addView(brand,new LinearLayout.LayoutParams(-1,dp(72)));
+        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(144)));
         try{scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));}catch(Exception error){toast(error.getMessage());}
-        LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(22),dp(12),dp(22),dp(16));
-        bottom.addView(text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0]),15,INK,true),new LinearLayout.LayoutParams(-1,dp(28)));
-        if(save.streak>0)brand.addView(text("  "+save.streak+"연승",11,0xffbe945e,true));gap(bottom,8);bottom.addView(button("플레이",true,()->startLevel(save.current)),new LinearLayout.LayoutParams(-1,dp(54)));gap(bottom,12);
-        LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};
-        int[] navIcons={9,11,0,10};
-        for(int i=0;i<4;i++){final int n=i;GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(56),1);if(i>0)lp.leftMargin=dp(8);links.addView(icon,lp);}
-
-        bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(188)));
+        LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(24),dp(4),dp(24),dp(12));
+        TextView badge=text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0])+(save.streak>0?"  ·  "+save.streak+"연승":""),13,0xff9c7856,true);bottom.addView(badge,new LinearLayout.LayoutParams(-1,dp(30)));
+        Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xff704628);
+        GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffffde83,0xffffb34d});face.setCornerRadius(dp(24));face.setStroke(dp(3),0xfffff7dc);
+        GradientDrawable base=background(0xffcf843e,24);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,18);
+        LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};int[] navIcons={9,11,0,10};
+        for(int i=0;i<4;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});icon.homeStyle();column.addView(icon,new LinearLayout.LayoutParams(-1,dp(62)));gap(column,7);column.addView(text(labels[i],11,0xff927352,true));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=dp(12);links.addView(column,lp);}
+        bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(244)));
     }
+
     private void startLevel(int id){
         if(id<1||id>LevelLoader.TOTAL||(!inspect&&id>save.unlocked))return;
         try {
@@ -87,7 +88,7 @@ public final class MainActivity extends Activity {
             float available=(root.getHeight()>0?root.getHeight()-root.getPaddingBottom():getResources().getDisplayMetrics().heightPixels)/getResources().getDisplayMetrics().density;
             float screenWidth=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
             int controlHeight=Math.round(GameLayout.controlsHeight(screenWidth,available));
-            content.addView(controls,new LinearLayout.LayoutParams(-1,dp(controlHeight)));
+            maxControlsHeight=targetControlsHeight=dp(controlHeight);content.addView(controls,new LinearLayout.LayoutParams(-1,maxControlsHeight));
             if(game.level.difficulty>0)toast(game.level.difficulty==2?"SUPER HARD · 묶음 작업에 도전하세요":"HARD · 작업 순서를 살펴보세요");if(!getPreferences(MODE_PRIVATE).getBoolean("constructionTutorial",false)){
                 synchronized(game){game.paused=true;}
                 dialog=new GameSheet(this,"","현장에 오신 걸 환영해요","",false);
@@ -97,6 +98,11 @@ public final class MainActivity extends Activity {
                 dialog.primary("좋아요, 출격!  →",()->{dismiss();getPreferences(MODE_PRIVATE).edit().putBoolean("constructionTutorial",true).apply();synchronized(owner){owner.paused=false;}});dialog.show();
             }
         }catch(Exception error){showHome();toast("레벨 로딩 오류: "+error.getMessage());}
+    }
+    private void resizeQueue(){
+        if(game==null||controls==null||controls.getWidth()==0)return;int[] lanes=new int[4];synchronized(game){for(NativeGame.Capsule c:game.queue)if(!c.taken)lanes[c.lane]++;}int rows=0;for(int n:lanes)rows=Math.max(rows,n);
+        int next=Math.round(GameLayout.compactHeight(maxControlsHeight,controls.getWidth(),rows));if(next==targetControlsHeight)return;targetControlsHeight=next;if(queueResize!=null)queueResize.cancel();final NativeHud owner=controls;
+        queueResize=android.animation.ValueAnimator.ofInt(owner.getHeight(),next);queueResize.setDuration(220);queueResize.addUpdateListener(a->{if(controls==owner){android.view.ViewGroup.LayoutParams lp=owner.getLayoutParams();lp.height=(Integer)a.getAnimatedValue();owner.setLayoutParams(lp);}});queueResize.start();
     }
     private void action(String key,int value){
         if(game==null)return;

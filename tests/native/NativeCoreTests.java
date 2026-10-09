@@ -12,6 +12,9 @@ public final class NativeCoreTests {
         return l;
     }
     static void rules(){
+        check(GameLayout.compactHeight(384,384,12)==384,"long queue retains four visible rows");
+        check(GameLayout.compactHeight(384,384,3)==324&&GameLayout.compactHeight(384,384,1)==204&&GameLayout.compactHeight(384,384,0)==144,"empty rows reclaim controls height");
+        check(GameLayout.columnX(0,1)==168&&GameLayout.columnX(0,2)==138&&GameLayout.columnX(0,3)==108,"one two and three containers remain centered at fixed size");
         SecretTapSequence secret=new SecretTapSequence();
         for(int i=0;i<6;i++)check(!secret.tap(i*200),"six secret taps do not unlock");
         check(secret.tap(1200),"seventh secret tap unlocks");
