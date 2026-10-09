@@ -1,0 +1,324 @@
+{
+  "levelId": 1,
+  "name": "첫 출격",
+  "chapter": 1,
+  "pattern": "shell",
+  "board": {
+    "width": 7,
+    "height": 7
+  },
+  "blocks": [
+    {
+      "x": 1,
+      "y": 0,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "color": "blue",
+      "type": "normal"
+    },
+    {
+      "x": 1,
+      "y": 6,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 2,
+      "y": 6,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 3,
+      "y": 6,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 4,
+      "y": 6,
+      "color": "red",
+      "type": "normal"
+    },
+    {
+      "x": 5,
+      "y": 6,
+      "color": "red",
+      "type": "normal"
+    }
+  ],
+  "containers": [
+    {
+      "id": 1,
+      "color": "red",
+      "robotCount": 7,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 0
+    },
+    {
+      "id": 2,
+      "color": "red",
+      "robotCount": 7,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 1
+    },
+    {
+      "id": 3,
+      "color": "blue",
+      "robotCount": 7,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 2
+    },
+    {
+      "id": 4,
+      "color": "blue",
+      "robotCount": 8,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 0
+    },
+    {
+      "id": 5,
+      "color": "red",
+      "robotCount": 4,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 1
+    },
+    {
+      "id": 6,
+      "color": "red",
+      "robotCount": 6,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 2
+    },
+    {
+      "id": 7,
+      "color": "blue",
+      "robotCount": 2,
+      "depth": 0,
+      "blockedBy": [],
+      "lane": 0
+    }
+  ],
+  "slotCount": 5,
+  "powerRobotChance": 0.1,
+  "megaRobot": {
+    "requiredGauge": 100,
+    "blockCount": 8
+  },
+  "revealDepth": 100,
+  "reward": 90
+}

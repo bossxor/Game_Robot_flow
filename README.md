@@ -1,2 +1,115 @@
-# Game_Robot_flow
-로봇 컨테이너 게임
+# Robot Flow — Native Android 3D
+
+색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
+현재 설치 파일: `releases/RobotFlow-v0.5.0-native-3d-debug.apk`
+
+Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 200개 레벨은 APK에 포함되어 인터넷 연결 없이 실행됩니다.
+
+## 네이티브 전환
+
+- Android `Activity`와 네이티브 버튼·대화상자로 메뉴 구성
+- `GLSurfaceView` + OpenGL ES로 3D 메시, 직교 카메라, 깊이 테스트, 조명 렌더링
+- 두 다리 운반원 COURIER / 궤도·리프트 중장비 BUILDER: 구조가 다른 두 모델과 각각 7색 외장
+- 걷기·회전·집기·운반·탑승, 공용 트럭 적재·출발·교체
+- 수백~천 개 자재를 구역별로 묶어 렌더링, 제거 구역만 메시 갱신
+- 화면 높이에 맞춰 카메라 영역을 늘이거나 줄이고 하단 조작부를 고정 배치
+- 대기열은 평면 4열·3행과 세로 스와이프. 각 열의 맨 앞만 선택 가능
+- 크림·차콜·오렌지 UI, 그림 아이템 4개와 일시정지 2×2 아이콘
+- 앱에 전체 스테이지 수를 표시하지 않으며 미해금 스테이지는 `?`로 표시
+
+APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니다.
+저장소의 `src/`와 `public/levels/`는 기존 참조 프로토타입입니다. 현재 APK는 `public/construction-levels/`를 사용합니다.
+
+## 게임 기능
+
+- 외곽·제거된 빈칸 flood fill 접근성, BFS 최단 경로, 타깃 예약
+- 7색, 활성 컨테이너 기본 5개, 같은 열의 맨 앞만 선택·선택 후 동일 열 상승
+- 기본 운반원 1개 / 게이지가 찼을 때 중장비 최대 8개 회수. 세 번째 로봇 단계 없음
+- 컨테이너 5개와 독립적인 공용 트럭: 20개 적재 후 출발, 마지막 트럭은 부분 적재로 출발
+- 슬롯 추가·컬러 제거·셔플·꺼내기 부스터, 코인 구매
+- 승리/교착 패배, 재시작, 일시정지, 2배속, 백그라운드 일시정지
+- 200개 레벨, 10개 그림 테마와 변형. 초반 20×20(400개), 이후 32×32(1,024개) 보드
+- 메인·스테이지·로봇·아이템·설정, 로컬 진행·기록·코인·부스터 저장
+- 음악·효과음·진동 및 음량 설정
+- Android 뒤로가기, 세로 화면, 시스템 바/노치 안전 영역 대응
+- 귀여운 로봇 런처 아이콘 및 Android 13+ 테마 아이콘
+
+네이티브 저장은 `SharedPreferences`를 사용합니다. 이전 프로토타입의 기기 내 localStorage JSON을 읽을 수 있으면 최초 실행에 가져옵니다. 판 도중의 블록/슬롯 상태는 저장하지 않습니다.
+
+## APK 설치
+
+APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
+
+```powershell
+adb install --user 0 -r releases/RobotFlow-v0.5.0-native-3d-debug.apk
+adb shell am start -n com.bossxor.robotflow/.MainActivity
+```
+
+기존 앱과 같은 applicationId와 개발 서명으로 업데이트합니다. 개발 테스트용 APK이며 스토어 배포에는 별도의 release 서명 APK/AAB가 필요합니다.
+
+## Android 빌드
+
+JDK 17, SDK Platform 36, Build Tools 35.0.0, Gradle 8.13, AGP 8.11.1을 사용합니다.
+Android Studio에서 `android/` 폴더를 열거나:
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+macOS/Linux:
+
+```sh
+cd android
+chmod +x gradlew
+./gradlew assembleDebug
+```
+
+결과: `android/app/build/outputs/apk/debug/app-debug.apk`
+빌드 시 `public/construction-levels/`만 assets에 동기화합니다. APK는 로컬 산출물이며 Git에는 포함하지 않습니다.
+
+## 검증
+
+Node.js 20 이상과 JDK 17에서:
+
+```sh
+node --test
+node scripts/generate-construction.mjs
+node scripts/verify-native.mjs
+```
+
+Java 테스트는 APK의 `NativeGame.java`를 직접 컴파일합니다. 맨 앞 선택·동일 열 상승, 두 단계 로봇, 타깃 예약, 트럭과 컨테이너의 독립성, 전체·부분 적재 출발, 일시정지, 7색, 부스터와 이스터에그를 검사합니다. 새 200개 레벨을 기본 로봇만/게이지 보너스 사용 조건에서 각각 완주하고 모든 자재의 적재 완료를 확인합니다. `node --test`는 기존 참조 엔진 회귀 테스트입니다.
+
+실행한 검증과 실제 기기 확인 범위는 [v0.5 검증 기록](docs/construction-v05-validation.md)에 정리합니다.
+
+## 구조
+
+```text
+android/app/src/main/java/com/bossxor/robotflow/
+  MainActivity.java      네이티브 메뉴, 수명주기, 오디오, 게임 제어
+  NativeScene.java       OpenGL 3D 메시·카메라·조명·로봇 애니메이션
+  NativeHud.java         화면 안에 고정되는 슬롯·컨테이너·부스터 터치 UI
+  NativeGame.java        Android 게임 규칙과 로봇 시뮬레이션
+  LevelLoader.java       JSON 레벨 읽기
+  PlayerSave.java        네이티브 진행 저장과 이전 데이터 가져오기
+public/construction-levels/ APK에 포함되는 새 그림 레벨 200개
+public/levels/           기존 참조 프로토타입 레벨
+src/engine.js            레벨 검증용 참조 규칙
+src/levels.js            재현 가능한 레벨 생성
+scripts/                 레벨 생성 및 Java 엔진 검증
+tests/native/            실제 네이티브 엔진 테스트
+.github/workflows/       Android APK 자동 빌드
+```
+
+## MVP 결정 및 후속 범위
+
+한 색이 모두 회수되면 남은 같은 색 컨테이너를 자동 정리하여 잉여 컨테이너 교착을 방지합니다. 처음 클리어 시 기본 보상, 재클리어 시 25% 보상을 지급하고 가장 빠른 기록을 저장합니다.
+
+모델은 네이티브 절차적 메시, 아이콘은 Canvas 도형, 음향은 직접 합성한 소프트 차임입니다. 특수 블록, 앱 내 레벨 편집기, 클라우드 저장, 광고·결제는 후속 범위입니다.
+
+현재 디자인 기준은 [공사현장 개편 계획](docs/construction-redesign-plan.md)입니다. 모델·카메라는 `NativeScene.java`, 메뉴는 `MainActivity.java`와 `GameSheet.java`, 대기열은 `NativeHud.java`, 아이콘은 `GameIcons.java`에서 수정합니다.
+
+설정 제목을 5초 안에 7번 터치하면 아이템 무제한 모드를 켜거나 끕니다. 터치 간격이 1.2초를 넘으면 새 순서로 시작합니다. On이면 수량 배지는 `∞`, 수량을 차감하지 않고 0개라도 사용 가능하며 재실행 후에도 유지됩니다. Off이면 원래 수량·사용 제한으로 돌아갑니다. 작업 공간 최대 6개 규칙은 유지합니다.
+
+대상 저장소: [bossxor/Game_Robot_flow](https://github.com/bossxor/Game_Robot_flow)
+`main`에 업로드하면 GitHub Actions에서 규칙 검증과 Android 빌드를 실행합니다. APK는 실행의 `RobotFlow-debug-apk` artifact에 저장됩니다.

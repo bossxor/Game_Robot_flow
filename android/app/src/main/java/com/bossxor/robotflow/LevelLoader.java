@@ -1,0 +1,39 @@
+package com.bossxor.robotflow;
+
+import android.content.res.AssetManager;
+import org.json.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public final class LevelLoader {
+    public static final int TOTAL = 200;
+    private static int color(String key) throws JSONException {
+        for (int i = 0; i < NativeGame.COLOR_KEYS.length; i++) if (NativeGame.COLOR_KEYS[i].equals(key)) return i;
+        throw new JSONException("Unknown color: " + key);
+    }
+    public static NativeGame.Level load(AssetManager assets, int id) throws IOException, JSONException {
+        if (id < 1 || id > TOTAL) throw new IOException("Invalid level " + id);
+        String path = String.format(java.util.Locale.US, "levels/level-%02d.json", id);
+        String text;
+        try (InputStream stream = assets.open(path); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192]; int n; while ((n = stream.read(buffer)) > 0) bytes.write(buffer, 0, n);
+            text = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
+        }
+        JSONObject json = new JSONObject(text), board = json.getJSONObject("board");
+        NativeGame.Level level = new NativeGame.Level(); level.id = json.getInt("levelId"); level.name = json.optString("name", "로봇 공장");
+        level.width = board.getInt("width"); level.height = board.getInt("height"); level.slotCount = json.optInt("slotCount", 5);
+        level.powerChance = json.optDouble("powerRobotChance", .1); level.revealDepth = json.optInt("revealDepth", 100); level.reward = json.optInt("reward", 100);
+        JSONObject mega = json.getJSONObject("megaRobot"); level.megaRequired = mega.getInt("requiredGauge"); level.megaCapacity = mega.getInt("blockCount");
+        JSONArray blocks = json.getJSONArray("blocks"), capsules = json.getJSONArray("containers");
+        for (int i = 0; i < blocks.length(); i++) { JSONObject b = blocks.getJSONObject(i); level.blocks.add(new NativeGame.Block(b.getInt("x"), b.getInt("y"), color(b.getString("color")))); }
+        for (int i = 0; i < capsules.length(); i++) {
+            JSONObject c = capsules.getJSONObject(i); NativeGame.Capsule capsule = new NativeGame.Capsule(c.getInt("id"), color(c.getString("color")), c.getInt("robotCount"), c.optInt("depth", 0));
+            capsule.lane = c.optInt("lane", i % 4); capsule.powerChance = c.optDouble("specialRobotChance", -1);
+            JSONArray parents = c.optJSONArray("blockedBy");
+            if (parents != null) { capsule.blockedBy = new int[parents.length()]; for (int j = 0; j < parents.length(); j++) capsule.blockedBy[j] = parents.getInt(j); }
+            else for (NativeGame.Capsule p : level.capsules) if (p.depth < capsule.depth) { int[] next = java.util.Arrays.copyOf(capsule.blockedBy, capsule.blockedBy.length + 1); next[next.length - 1] = p.id; capsule.blockedBy = next; }
+            level.capsules.add(capsule);
+        }
+        return level;
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Robot Flow · 로봇 플로우",
+  "short_name": "Robot Flow",
+  "start_url": "../",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#f3f1e8",
+  "theme_color": "#143a35",
+  "lang": "ko",
+  "icons": [{ "src": "robot-flow-icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any" }]
+}
