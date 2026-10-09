@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 const colors=['red','blue','yellow','green','purple','orange','pink'];
 const names=['안전모 친구','자재 트럭','높이 올려요','안전한 길','새로운 집','튼튼한 다리','작은 굴착기','공구 시간','현장 표지','꽃 피는 현장'];
 function picture(id,size){
@@ -43,7 +43,7 @@ function containers(board){
     const out=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(live[y][x]&&[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].some(([a,b])=>reached.has(`${a},${b}`)))out.push([x,y]);return out;};
   let remaining=n*n;
   while(remaining){let reachable=front();let frequency=Array(7).fill(0);for(const [x,y] of reachable)frequency[board[y][x]]++;
-    const color=frequency.indexOf(Math.max(...frequency));let count=0;const limit=[24,18,32,20,28,16][sequence.length%6];
+    const color=frequency.indexOf(Math.max(...frequency));let count=0;const limit=(n<=20?[24,18,32,20,28,16]:[40,25,60,35,100,45,75,20])[sequence.length% (n<=20?6:8)];
     while(count<limit){const available=front().filter(([x,y])=>board[y][x]===color);if(!available.length)break;
       for(const [x,y] of available){if(count===limit)break;live[y][x]=false;remaining--;count++;}}
     sequence.push({color,count});
@@ -52,9 +52,11 @@ function containers(board){
   return sequence.map((c,i)=>{const lane=i%4,id=i+1,blockedBy=prev[lane]?[prev[lane]]:[];prev[lane]=id;return {id,color:colors[c.color],robotCount:c.count,depth:Math.floor(i/4),lane,blockedBy};});
 }
 await mkdir('public/construction-levels',{recursive:true});
-for(let id=1;id<=200;id++){
-  const size=id<=2?20:32,board=picture(id,size),blocks=board.flatMap((r,y)=>r.map((color,x)=>({x,y,color:colors[color]})));
+for(let id=1;id<=500;id++){
+  const size=id<=2?20:48,board=picture(id,size),blocks=board.flatMap((r,y)=>r.map((color,x)=>({x,y,color:colors[color]})));
   const level={levelId:id,name:names[(id-1)%10],board:{width:size,height:size},slotCount:5,revealDepth:100,reward:100+Math.floor(id/10)*10,powerRobotChance:0,megaRobot:{requiredGauge:100,blockCount:8},blocks,containers:containers(board)};
-  await writeFile(`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,JSON.stringify(level)+'\n');
+  const path=`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,text=JSON.stringify(level)+'\n';
+  const previous=await readFile(path,'utf8').catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  if(previous!==text)await writeFile(path,text);
 }
-console.log('Generated 200 construction pictures: tutorial 400 tiles, main boards 1024 tiles.');
+console.log('Generated 500 construction pictures: tutorial 400 tiles, main boards 2304 tiles.');

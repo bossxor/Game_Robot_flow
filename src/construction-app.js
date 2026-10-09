@@ -1,0 +1,61 @@
+import {Game,COLORS,PALETTE,COLOR_NAMES} from './engine.js';
+import {loadSave,storeSave,recordWin} from './storage.js';
+import {TOTAL_LEVELS} from './config.js';
+import {AudioSystem} from './audio.js';
+import {ConstructionRenderer} from './construction-renderer.js';
+const app=document.querySelector('#app'),save=loadSave(),audio=new AudioSystem(save.settings);
+const keys=['extraSlot','colorClear','shuffle','pullOut'],names=['작업 공간 추가','컬러 제거','셔플','꺼내기'];
+let game,renderer,speed=1,mode=null,page=0,last=performance.now(),uiTime=0,token=0,secret=[];
+const persist=()=>storeSave(save),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const paths=[
+ '<path d="M9 30V24a15 15 0 0 1 30 0v6" fill="#ffa052"/><path d="M23 10v15M5 31h39" stroke="#f4ca60" stroke-width="6"/><path d="M35 31v13m-6-6h12" stroke="#353b43" stroke-width="4"/>',
+ '<path d="m14 36 22-24" stroke="#353b43" stroke-width="6"/><circle cx="12" cy="37" r="9" fill="#61ace2"/><circle cx="35" cy="12" r="9" fill="#ed96bc"/>',
+ '<rect x="4" y="8" width="20" height="23" rx="5" fill="#61ace2"/><rect x="25" y="21" width="20" height="23" rx="5" fill="#ffa052"/><path d="M9 35h23l-6-5m13-16H17l6 5" fill="none" stroke="#353b43" stroke-width="3"/>',
+ '<path d="M24 6v21M11 39l3-16h20l3 16" fill="none" stroke="#61ace2" stroke-width="6"/><circle cx="24" cy="10" r="7" fill="#ffa052"/>',
+ '<path d="m17 10 23 14-23 14z" fill="#353b43"/>',
+ '<path d="M17 11v27m14-27v27" stroke="#353b43" stroke-width="7" stroke-linecap="round"/>',
+ '<path d="M20 10 8 24h8v15h17V24h8L29 10z" fill="#ffa052"/>',
+ '<path d="M35 18a16 16 0 1 0 2 17M35 7v13H22" fill="none" stroke="#353b43" stroke-width="5"/>',
+ '<path d="M14 19 5 29h11l7 11V8l-7 11zM31 15q15 9 0 18" fill="none" stroke="#353b43" stroke-width="4"/>'
+];
+const icon=i=>`<svg viewBox="0 0 48 48" aria-hidden="true">${paths[i]}</svg>`;
+const btn=(label,action,body,extra='')=>`<button data-action="${action}" aria-label="${esc(label)}" ${extra}>${body}</button>`;
+function toast(s){const el=document.querySelector('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2300);}
+function close(){document.querySelector('#modal-layer')?.remove();if(game)game.paused=false;}
+function modal(title,body){document.querySelector('#modal-layer')?.remove();if(game)game.paused=true;const el=document.createElement('div');el.id='modal-layer';el.innerHTML=`<section class="modal" role="dialog" aria-modal="true" aria-label="${title||'일시정지'}">${title?`<header><h2 data-action="secret">${title}</h2>${btn('닫기','close','×')}</header>`:''}${body}</section>`;app.append(el);el.querySelector('button')?.focus();}
+function home(){token++;close();game=null;renderer=null;app.innerHTML=`<main class="home"><div class="coins">◈ ${save.coins}</div><img class="hero" src="./public/robot-flow-icon.png" alt="로봇 작업팀"><h1>ROBOT FLOW</h1><p>STAGE ${String(save.lastLevel).padStart(3,'0')}</p>${btn('플레이','play','▶ 플레이','class="primary"')}<nav>${btn('스테이지','stages','▦')}${btn('로봇','robots','♙')}${btn('아이템','items',icon(0))}${btn('설정','settings','⚙')}</nav></main>`;}
+async function start(id){const request=++token;if(id<1||id>save.highestUnlockedLevel)return;close();app.innerHTML='<main class="home">로봇을 준비하고 있어요…</main>';
+ try{const res=await fetch(`./public/construction-levels/level-${String(id).padStart(2,'0')}.json`);if(!res.ok)throw Error('레벨을 불러올 수 없어요.');const level=await res.json();if(request!==token)return;
+  game=new Game(level,{onEvent:e=>{audio.effect(e.type);if(e.type==='won'){const reward=recordWin(save,id,game.time,game.moves,level.reward);persist();modal('작업 완료',`<p class="reward">+${reward} ◈</p>${btn('다음 스테이지','next','▶','class="primary"')}${btn('메인','home',icon(6),'class="round"')}`);}if(e.type==='lost')modal('작업 공간이 꽉 찼어요',`${btn('아이템 사용','close',icon(0),'class="round"')}${btn('다시 시작','restart',icon(7),'class="round"')}${btn('메인','home',icon(6),'class="round"')}`);}});
+  game.unlimitedItems=save.unlimitedItems;speed=1;page=0;mode=null;save.lastLevel=id;persist();
+  app.innerHTML=`<main class="play-screen"><header class="game-header">${btn('일시정지','pause',icon(5))}<div><h1>STAGE ${String(id).padStart(3,'0')}</h1><div class="gauge"><i id="gauge"></i></div></div>${btn('배속','speed','▶ 1×','id="speed"')}</header><canvas id="board" role="img" aria-label="그림 블록과 로봇, 공용 트럭"></canvas><section class="controls"><div id="active" aria-label="작업 중 컨테이너"></div><div id="queue" aria-label="컨테이너 대기열"></div><div id="dock"></div></section></main>`;
+  renderer=new ConstructionRenderer(document.querySelector('#board'),game);update();let down;const q=document.querySelector('#queue');q.addEventListener('pointerdown',e=>down=e.clientY);q.addEventListener('pointerup',e=>{if(Math.abs(e.clientY-down)>28){page=Math.max(0,page+(e.clientY<down?1:-1));update();}});q.addEventListener('wheel',e=>{e.preventDefault();page=Math.max(0,page+(e.deltaY>0?1:-1));update();},{passive:false});
+ }catch(error){home();toast(error.message);}}
+const card=(c,front,active=false)=>{const count=active?Math.max(0,c.robotCount-c.loaded):c.remaining;return btn(`${COLOR_NAMES[c.color]} 컨테이너 ${count}개${front?'':' 뒤쪽'}`,'container',String(count),`class="card ${front?'front':'rear'}" data-id="${c.id}" style="--color:${PALETTE[c.color]}" ${active?'disabled':''}`);};
+function replace(el,html){if(el.dataset.html===html)return;const before=new Map([...document.querySelectorAll('[data-id]')].map(e=>[e.dataset.id,e.getBoundingClientRect()]));el.innerHTML=html;el.dataset.html=html;for(const e of el.querySelectorAll('[data-id]')){const old=before.get(e.dataset.id);if(old){const at=e.getBoundingClientRect();if(old.x!==at.x||old.y!==at.y)e.animate([{transform:`translate(${old.x-at.x}px,${old.y-at.y}px)`},{transform:'none'}],{duration:220,easing:'ease-out'});}}}
+function update(){if(!game||!document.querySelector('#active'))return;const lanes=Array.from({length:4},(_,i)=>game.queue.filter(c=>!c.taken&&c.lane===i).sort((a,b)=>a.depth-b.depth));page=Math.min(page,Math.max(0,...lanes.map(l=>l.length-3)));
+ replace(document.querySelector('#active'),game.slots.map(c=>`<div class="position">${c?card(c,true,true):''}</div>`).join(''));
+ replace(document.querySelector('#queue'),Array.from({length:3},(_,row)=>lanes.map(l=>l[page+row]?card(l[page+row],game.isUnlocked(l[page+row])):'<div></div>').join('')).join(''));
+ replace(document.querySelector('#dock'),keys.map((k,i)=>btn(names[i],`item-${k}`,`${icon(i)}<b>${save.unlimitedItems?'∞':save.boosters[k]}</b>`,`class="item ${mode===k?'selected':''}"`)).join(''));
+ document.querySelector('#gauge').style.width=`${game.gauge/game.level.megaRobot.requiredGauge*100}%`;}
+function settings(){modal('설정',`<div class="settings">${[['music','음악'],['soundEffect','효과음'],['vibration','진동']].map(([k,n])=>`<label>${n}<input type="checkbox" data-setting="${k}" ${save.settings[k]?'checked':''}></label>`).join('')}${[['musicVolume','음악 음량'],['sfxVolume','효과음 음량']].map(([k,n])=>`<label>${n}<input type="range" min="0" max="1" step=".05" data-setting="${k}" value="${save.settings[k]}"></label>`).join('')}</div>`);}
+function stages(){const begin=Math.max(1,save.lastLevel-9),end=Math.min(TOTAL_LEVELS,Math.max(begin+19,save.highestUnlockedLevel+4));modal('스테이지',`<div class="stages">${Array.from({length:end-begin+1},(_,i)=>{const id=begin+i;return btn(id<=save.highestUnlockedLevel?`스테이지 ${id}`:'미해금 스테이지','stage',id<=save.highestUnlockedLevel?id:'?',`data-id="${id}" ${id>save.highestUnlockedLevel?'disabled':''}`);}).join('')}</div>`);}
+function items(){modal('아이템',keys.map((k,i)=>`<div class="store-item">${icon(i)}<span>${names[i]} <b>${save.unlimitedItems?'∞':save.boosters[k]}</b></span>${btn('구매','buy',`${[100,200,80,120][i]} ◈`,`data-key="${k}" data-price="${[100,200,80,120][i]}" ${save.unlimitedItems?'disabled':''}`)}</div>`).join(''));}
+function use(key,value){if(!game)return;if(!save.unlimitedItems&&!save.boosters[key]){toast('보유한 아이템이 없어요.');return;}const ok=key==='extraSlot'?game.extraSlot():key==='shuffle'?game.shuffle():key==='pullOut'?game.pullOut(value):game.clearColor(value);if(!ok){toast('지금은 사용할 수 없어요.');return;}if(!save.unlimitedItems)save.boosters[key]--;persist();mode=null;update();}
+function pause(){if(!game||game.status!=='playing')return;modal('',`<div class="pause-grid">${btn('계속 플레이','close',icon(4))}${btn('사운드 진동 설정','settings',icon(8))}${btn('다시 시작','restart',icon(7))}${btn('메인','home',icon(6))}</div>`);}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;audio.unlock();
+ if(a==='home')home();else if(a==='play')start(save.lastLevel);else if(a==='stage')start(Number(b.dataset.id));else if(a==='next')start(Math.min(TOTAL_LEVELS,game.level.levelId+1));
+ else if(a==='pause')pause();else if(a==='close')close();else if(a==='restart')start(game.level.levelId);else if(a==='settings')settings();else if(a==='stages')stages();else if(a==='items')items();
+ else if(a==='robots')modal('작업팀',`<div class="team"><p>COURIER · 두 다리 운반원<br>자재 1개 회수</p><p>BUILDER · 궤도와 리프트<br>자재 최대 8개 회수</p><div class="swatches">${COLORS.map(c=>`<i style="background:${PALETTE[c]}"></i>`).join('')}</div></div>`);
+ else if(a==='speed'){speed=speed===1?2:1;b.textContent=`▶ ${speed}×`;}
+ else if(a==='container'){if(mode==='pullOut')use(mode,Number(b.dataset.id));else if(!game.select(Number(b.dataset.id)))toast(game.slots.includes(null)?'이 열의 맨 앞 컨테이너를 선택하세요.':'작업 중인 컨테이너가 끝나면 선택할 수 있어요.');update();}
+ else if(a.startsWith('item-')){const key=a.slice(5);if(!save.unlimitedItems&&!save.boosters[key]){toast('보유한 아이템이 없어요.');return;}if(key==='colorClear')modal('색 선택',`<div class="color-picker">${COLORS.filter(c=>game.blocks.some(b=>!b.removed&&b.color===c)).map(c=>btn(COLOR_NAMES[c],'color','',`data-color="${c}" style="background:${PALETTE[c]}"`)).join('')}</div>`);else if(key==='pullOut'){mode=mode===key?null:key;update();if(mode)toast('뒤쪽 컨테이너를 선택하세요.');}else use(key);}
+ else if(a==='color'){close();use('colorClear',b.dataset.color);}
+ else if(a==='buy'){const price=Number(b.dataset.price);if(save.coins>=price){save.coins-=price;save.boosters[b.dataset.key]++;persist();items();}else toast('코인이 부족해요.');}
+ else if(a==='secret'&&b.textContent==='설정'){const now=performance.now();if(!secret.length||now-secret.at(-1)>1200||now-secret[0]>5000)secret=[];secret.push(now);if(secret.length===7){secret=[];save.unlimitedItems=!save.unlimitedItems;if(game)game.unlimitedItems=save.unlimitedItems;persist();update();toast(`아이템 무제한 모드 ${save.unlimitedItems?'On':'Off'}`);}}
+});
+document.addEventListener('input',e=>{const k=e.target.dataset.setting;if(k){save.settings[k]=e.target.type==='checkbox'?e.target.checked:Number(e.target.value);persist();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.querySelector('#modal-layer'))close();else pause();}if(e.key==='Tab'){const el=document.querySelector('#modal-layer');if(!el)return;const list=[...el.querySelectorAll('button:not(:disabled),input')];if(e.shiftKey&&document.activeElement===list[0]){e.preventDefault();list.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===list.at(-1)){e.preventDefault();list[0]?.focus();}}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();audio.suspend();}});
+function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(game){for(let i=0;i<2*speed;i++)game.update(dt);renderer?.draw();uiTime+=dt;if(uiTime>.15){update();uiTime=0;}}requestAnimationFrame(frame);}
+home();requestAnimationFrame(frame);

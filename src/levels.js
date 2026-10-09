@@ -3,7 +3,7 @@ import { TOTAL_LEVELS } from './config.js';
 const INTRO_NAMES = ['첫 출격', '컬러 코어', '작은 정비소', '새로운 통로', '로봇 친구들', '민트 회로', '중앙 제어실', '퍼플 엔진', '겹쳐진 신호', '전력 충전', '공장 가동', '깊은 회로', '교차하는 길', '숨은 코어', '다섯 색 공장', '정밀 조립', '메가 프로젝트', '비밀 설계도', '최종 점검', '로봇 플로우'];
 const SECTORS = ['입문 공장', '회로 정비소', '컬러 연구동', '에너지 플랜트', '코어 조립소', '자동화 타워', '심층 연구소', '궤도 정거장', '메가 파운드리', '최종 제어실'];
 const PATTERNS = ['shell', 'cross', 'diamond', 'circuit', 'spiral', 'gateway'];
-export const LEVEL_NAMES = Array.from({ length: TOTAL_LEVELS }, (_, i) => INTRO_NAMES[i] || `${SECTORS[Math.floor(i / 20)]} · ${String(i % 20 + 1).padStart(2, '0')}`);
+export const LEVEL_NAMES = Array.from({ length: TOTAL_LEVELS }, (_, i) => INTRO_NAMES[i] || `${SECTORS[Math.floor(i / 20)%SECTORS.length]} · ${String(i % 20 + 1).padStart(2, '0')}`);
 // Generate containers by simulating legal one-block removals. The resulting
 // order is a constructive solution, even with power robots disabled.
 export function containersForBlocks(blocks, width, height, seed = 1, overlap = true) {
@@ -24,7 +24,7 @@ export function containersForBlocks(blocks, width, height, seed = 1, overlap = t
   return containers;
 }
 export function generateLevel(id, attempt = 0) {
-  if (!Number.isInteger(id) || id < 1 || id > TOTAL_LEVELS) throw new Error('레벨 번호는 1~200이어야 합니다.');
+  if (!Number.isInteger(id) || id < 1 || id > TOTAL_LEVELS) throw new Error('레벨 번호가 유효하지 않습니다.');
   const random = seededRandom(id * 12371), size = id <= 4 ? 7 : id <= 12 ? 9 : id <= 60 ? 11 : id <= 140 ? 12 : 13;
   const count = id <= 2 ? 2 : id <= 5 ? 3 : id <= 8 ? 4 : 5;
   const colors = COLORS.slice(0, count), blocks = [], center = (size - 1) / 2;

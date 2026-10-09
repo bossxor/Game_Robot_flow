@@ -19,8 +19,8 @@ try {
             $hasEngine = $hasEngine -or $content.Contains('Lcom/bossxor/robotflow/NativeGame;')
         } finally { $stream.Dispose(); $memory.Dispose() }
     }
-    if ($levels -ne 200 -or $webAssets -ne 0 -or $hasWebView -or !$hasScene -or !$hasEngine) {
+    if ($levels -ne 500 -or $webAssets -ne 0 -or $hasWebView -or !$hasScene -or !$hasEngine) {
         throw "Invalid native APK: levels=$levels webAssets=$webAssets WebView=$hasWebView NativeScene=$hasScene NativeGame=$hasEngine"
     }
-    Write-Output "Verified native APK: 200 JSON levels, native Java engine, OpenGL scene, no WebView or web assets."
+    Write-Output "Verified native APK: 500 JSON levels, native Java engine, OpenGL scene, no WebView or web assets."
 } finally { $archive.Dispose() }

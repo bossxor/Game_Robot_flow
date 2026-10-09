@@ -6,7 +6,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public final class LevelLoader {
-    public static final int TOTAL = 200;
+    public static final int TOTAL = 500;
     private static int color(String key) throws JSONException {
         for (int i = 0; i < NativeGame.COLOR_KEYS.length; i++) if (NativeGame.COLOR_KEYS[i].equals(key)) return i;
         throw new JSONException("Unknown color: " + key);

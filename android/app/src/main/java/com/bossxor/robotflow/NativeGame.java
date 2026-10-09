@@ -142,7 +142,9 @@ public final class NativeGame {
     }
     private int workers(int id) { int n = 0; for (Bot b : bots) if (b.capsuleId == id) n++; return n; }
     private void spawn(Capsule c, int slot) {
-        if (c.remaining <= 0 || workers(c.id) >= 8) return;
+        // Keep the physical walking speed and worker density stable on finer picture grids.
+        float densityScale = Math.max(1, width / 32f);
+        if (c.remaining <= 0 || workers(c.id) >= Math.round(8 * densityScale)) return;
         List<Block> targets = available(c.color); if (targets.isEmpty()) return;
         Point origin = origin(slot); int start = key(Math.max(-1, Math.min(width, Math.round(origin.x))), height + 4);
         Flood f = flood(gx(start), gy(start));
@@ -213,7 +215,8 @@ public final class NativeGame {
                 } else if (truckState==0) departTruck();
                 continue;
             }
-            bot.velocity=Math.min(bot.kind==1?3.8f:5.2f,bot.velocity+(float)dt*12);
+            float densityScale=Math.max(1,width/32f);
+            bot.velocity=Math.min((bot.kind==1?3.8f:5.2f)*densityScale,bot.velocity+(float)dt*12*densityScale);
             float travel=(float)dt*bot.velocity;
             while(travel>0 && bot.step<bot.route.size()){
                 Point p=bot.route.get(bot.step);float dx=p.x-bot.x,dy=p.y-bot.y,d=(float)Math.hypot(dx,dy);

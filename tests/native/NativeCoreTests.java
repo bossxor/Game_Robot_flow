@@ -48,6 +48,9 @@ public final class NativeCoreTests {
         g=new NativeGame(overlap);check(!g.select(2),"rear containers are locked");check(g.pullOut(2)&&g.select(2),"targeted pull-out unlocks chosen rear capsule");
 
         check(NativeGame.COLORS.length==7,"seven team colors");
+        float[] walks=new float[2];int[] sizes={32,48};
+        for(int i=0;i<sizes.length;i++){NativeGame.Level dense=simple();dense.width=dense.height=sizes[i];dense.blocks.add(new NativeGame.Block(0,sizes[i]-1,0));dense.capsules.add(new NativeGame.Capsule(1,0,1,0));NativeGame walk=new NativeGame(dense);walk.select(1);walk.update(.01);NativeGame.Bot moving=walk.bots.get(0);float distanceBefore=moving.distance;walk.update(.1);walks[i]=moving.distance-distanceBefore;}
+        check(Math.abs(walks[1]/48-walks[0]/32)<.00001,"fine grids preserve normalized walking speed");
         NativeGame.Level trucks=simple();for(int i=0;i<25;i++)trucks.blocks.add(new NativeGame.Block(i%5,i/5,0));trucks.capsules.add(new NativeGame.Capsule(1,0,25,0));g=new NativeGame(trucks);g.select(1);
         boolean independent=false,departed=false;for(int n=0;n<3000&&g.status==0;n++){g.update(.1);if(g.truckState==1){departed=true;if(g.slots.get(0)!=null)independent=true;}if(n==40){g.paused=true;double t=g.time,tc=g.truckClock;int cargo=g.truckCargo;g.update(.1);check(g.time==t&&g.truckClock==tc&&g.truckCargo==cargo,"pause freezes truck and robot simulation");g.paused=false;}}
         check(departed&&independent,"shared truck departs while a container still works");check(g.status==1&&g.delivered==25&&g.departures==2,"full and partial cargo leave once, with no lost blocks");
@@ -63,12 +66,12 @@ public final class NativeCoreTests {
         }return result;
     }
     public static void main(String[] args)throws Exception{
-        rules();List<NativeGame.Level> levels=read(args[0]);check(levels.size()==200,"all 200 native levels loaded");
+        rules();List<NativeGame.Level> levels=read(args[0]);check(levels.size()==500,"all 500 native levels loaded");
         ArrayList<String> failed=new ArrayList<>();
         for(double chance:new double[]{0,1}){
             int pass=0;
             for(NativeGame.Level l:levels){l.powerChance=chance;NativeGame g=new NativeGame(l,new Random(l.id*173L));
-                for(int n=0;n<30000&&g.status==0;n++){
+                for(int n=0;n<60000&&g.status==0;n++){
                     if(chance==0)g.gauge=0;
                     if(g.bots.isEmpty()&&g.slots.contains(null)){
                         NativeGame.Capsule next=null;
@@ -78,7 +81,7 @@ public final class NativeCoreTests {
                 }
                 if(g.status==1){pass++;check(g.remainingBlocks()==0&&g.bots.isEmpty()&&g.delivered==g.blocks.size()&&g.truckCargo==0,"fully recovered native level "+l.id);}
                 else failed.add("level="+l.id+" chance="+chance+" status="+g.status+" remaining="+g.remainingBlocks());
-            }System.out.println("Native levels, power chance "+chance+": "+pass+" / 200 cleared");
+            }System.out.println("Native levels, power chance "+chance+": "+pass+" / "+levels.size()+" cleared");
         }
         for(String failure:failed)System.out.println(failure);
         check(failed.isEmpty(),"Native engine level solutions failed: "+failed.size());

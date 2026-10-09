@@ -17,3 +17,4 @@ android/app/src/main/assets/
 *.keystore
 .build/
 releases/
+참고앱/

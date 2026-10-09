@@ -41,7 +41,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(INK);getWindow().setNavigationBarColor(BACK);
         root=new FrameLayout(this);root.setBackgroundColor(BACK);
         root.setOnApplyWindowInsetsListener((v,insets)->{
-            if(Build.VERSION.SDK_INT>=30){android.graphics.Insets s=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());v.setPadding(s.left,s.top,s.right,s.bottom);}
+            if(Build.VERSION.SDK_INT>=30){android.graphics.Insets s=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());v.setPadding(s.left,screen.equals("game")?0:s.top,s.right,s.bottom);}
             else v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;
         });setContentView(root);setupAudio();showHome();handler.post(heartbeat);handler.postDelayed(musicLoop,900);
         if(BuildConfig.DEBUG&&getIntent().hasExtra("inspect_level")){inspect=true;startLevel(getIntent().getIntExtra("inspect_level",1));}
@@ -55,7 +55,7 @@ public final class MainActivity extends Activity {
     private void dismiss(){if(dialog!=null){dialog.setOnDismissListener(null);dialog.dismiss();dialog=null;}}
     private void rebuild(String mode){
         dismiss();if(scene!=null)scene.onPause();scene=null;header=controls=null;
-        screen=mode;root.removeAllViews();notice=null;content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setBackgroundColor(BACK);root.addView(content,new FrameLayout.LayoutParams(-1,-1));
+        screen=mode;root.removeAllViews();notice=null;content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setBackgroundColor(BACK);root.addView(content,new FrameLayout.LayoutParams(-1,-1));root.requestApplyInsets();
     }
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
@@ -81,11 +81,12 @@ public final class MainActivity extends Activity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final NativeGame owner=game;
             game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("won")||type.equals("lost"))showResult();}});
-            header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(60)));
+            header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
             scene=new NativeScene(this,game,false);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
-            float available=getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density;
-            int controlHeight=(int)Math.max(292,Math.min(320,available*.385f));
+            float available=(root.getHeight()>0?root.getHeight()-root.getPaddingBottom():getResources().getDisplayMetrics().heightPixels)/getResources().getDisplayMetrics().density;
+            float screenWidth=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
+            int controlHeight=Math.round(GameLayout.controlsHeight(screenWidth,available));
             content.addView(controls,new LinearLayout.LayoutParams(-1,dp(controlHeight)));
             if(!getPreferences(MODE_PRIVATE).getBoolean("constructionTutorial",false)){
                 synchronized(game){game.paused=true;}
@@ -106,7 +107,7 @@ public final class MainActivity extends Activity {
             if(key.equals("queue-page")){controls.page=Math.max(0,controls.page+value);controls.invalidate();return;}
             if(key.equals("capsule")){
                 if(controls.pullMode){if(save.hasBooster(3)&&game.pullOut(value)){save.consumeBooster(3);controls.pullMode=false;effect("select");}else toast("뒤쪽에 잠긴 컨테이너를 선택하세요.");}
-                else if(!game.select(value))toast("각 열의 맨 앞만 선택할 수 있어요. 작업 공간은 5개입니다.");
+                else if(!game.select(value))toast(game.slots.contains(null)?"이 열의 맨 앞 컨테이너를 선택하세요.":"작업 중인 컨테이너가 끝나면 선택할 수 있어요.");
             }else if(key.equals("booster"))useBooster(value);
             if(controls!=null)controls.invalidate();
         }

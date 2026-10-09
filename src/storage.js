@@ -1,7 +1,7 @@
 import { TOTAL_LEVELS } from './config.js';
 export const SAVE_KEY = 'robot-flow.save.v1';
 export function defaults() {
-  return { version: 1, currentLevel: 1, highestUnlockedLevel: 1, lastLevel: 1, coins: 300, cleared: {}, boosters: { extraSlot: 3, colorClear: 2, shuffle: 3, pullOut: 3 }, tutorialCompleted: false, robotUnlocks: ['mini', 'power', 'mega'], settings: { music: true, soundEffect: true, vibration: true, musicVolume: 0.35, sfxVolume: 0.65, language: 'ko' } };
+  return { version: 1, currentLevel: 1, highestUnlockedLevel: 1, lastLevel: 1, coins: 300, cleared: {}, boosters: { extraSlot: 3, colorClear: 2, shuffle: 3, pullOut: 3 }, unlimitedItems: false, tutorialCompleted: false, robotUnlocks: ['mini', 'mega'], settings: { music: true, soundEffect: true, vibration: true, musicVolume: 0.35, sfxVolume: 0.65, language: 'ko' } };
 }
 export function sanitizeSave(raw) {
   const base = defaults();
@@ -15,6 +15,7 @@ export function sanitizeSave(raw) {
   for (const key of ['music', 'soundEffect', 'vibration']) if (typeof raw.settings?.[key] === 'boolean') base.settings[key] = raw.settings[key];
   for (const key of ['musicVolume', 'sfxVolume']) if (Number.isFinite(raw.settings?.[key])) base.settings[key] = Math.max(0, Math.min(1, raw.settings[key]));
   base.tutorialCompleted = raw.tutorialCompleted === true;
+  base.unlimitedItems = raw.unlimitedItems === true;
   for (let i = 1; i <= TOTAL_LEVELS; i++) if (raw.cleared?.[i] && Number.isFinite(raw.cleared[i].bestTime) && raw.cleared[i].bestTime >= 0) base.cleared[i] = { bestTime: raw.cleared[i].bestTime, moves: num(raw.cleared[i].moves, 0, 0, 10000) };
   return base;
 }

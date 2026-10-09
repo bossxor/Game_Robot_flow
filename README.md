@@ -1,9 +1,11 @@
 # Robot Flow — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-현재 설치 파일: `releases/RobotFlow-v0.5.0-native-3d-debug.apk`
+현재 설치 파일: `releases/RobotFlow-v0.6.0-native-3d-debug.apk`
 
-Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 200개 레벨은 APK에 포함되어 인터넷 연결 없이 실행됩니다.
+v0.6.0은 [Colony Flow UI 비율 적용](docs/colony-ui-reference.md)을 기준으로 보드·컨테이너·아이템 배치를 수정하고 일반 보드를 48×48로 확대했습니다. 기본 1× 속도는 이전 2×와 같습니다. 500개 레벨을 포함한 APK를 ADB로 업데이트했으며 웹 미리보기도 같은 레벨 데이터와 UI 배치를 사용합니다. [검증 기록](docs/v06-validation.md)
+
+Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 최신 소스와 로컬 빌드에는 500개 레벨이 포함되어 인터넷 연결 없이 실행됩니다. 이전 배포 APK에는 200개가 포함되어 있습니다.
 
 ## 네이티브 전환
 
@@ -11,14 +13,16 @@ Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 200개 레벨은
 - `GLSurfaceView` + OpenGL ES로 3D 메시, 직교 카메라, 깊이 테스트, 조명 렌더링
 - 두 다리 운반원 COURIER / 궤도·리프트 중장비 BUILDER: 구조가 다른 두 모델과 각각 7색 외장
 - 걷기·회전·집기·운반·탑승, 공용 트럭 적재·출발·교체
-- 수백~천 개 자재를 구역별로 묶어 렌더링, 제거 구역만 메시 갱신
+- 수백~2,304개 자재를 구역별 GPU 버퍼로 렌더링, 제거 구역만 갱신
 - 화면 높이에 맞춰 카메라 영역을 늘이거나 줄이고 하단 조작부를 고정 배치
 - 대기열은 평면 4열·3행과 세로 스와이프. 각 열의 맨 앞만 선택 가능
 - 크림·차콜·오렌지 UI, 그림 아이템 4개와 일시정지 2×2 아이콘
 - 앱에 전체 스테이지 수를 표시하지 않으며 미해금 스테이지는 `?`로 표시
 
 APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니다.
-저장소의 `src/`와 `public/levels/`는 기존 참조 프로토타입입니다. 현재 APK는 `public/construction-levels/`를 사용합니다.
+현재 APK와 웹앱은 `public/construction-levels/`를 사용합니다. `src/app.js`, `src/renderer.js`, `src/style.css`, `public/levels/`는 이전 프로토타입 참조 자료입니다. 웹 진입점은 `src/construction-app.js`이며 브라우저 Canvas로 게임을 표현합니다. APK의 OpenGL 3D 렌더러와는 별도입니다.
+
+웹 미리보기는 `node scripts/serve.mjs`로 실행한 뒤 `http://localhost:5173/`에서 확인할 수 있습니다. `node scripts/build.mjs`는 정적 웹 빌드를 `dist/`에 생성합니다.
 
 ## 게임 기능
 
@@ -28,7 +32,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 - 컨테이너 5개와 독립적인 공용 트럭: 20개 적재 후 출발, 마지막 트럭은 부분 적재로 출발
 - 슬롯 추가·컬러 제거·셔플·꺼내기 부스터, 코인 구매
 - 승리/교착 패배, 재시작, 일시정지, 2배속, 백그라운드 일시정지
-- 200개 레벨, 10개 그림 테마와 변형. 초반 20×20(400개), 이후 32×32(1,024개) 보드
+- 500개 레벨, 10개 그림 테마와 변형. 초반 20×20(400개), 이후 48×48(2,304개) 보드
 - 메인·스테이지·로봇·아이템·설정, 로컬 진행·기록·코인·부스터 저장
 - 음악·효과음·진동 및 음량 설정
 - Android 뒤로가기, 세로 화면, 시스템 바/노치 안전 영역 대응
@@ -41,7 +45,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RobotFlow-v0.5.0-native-3d-debug.apk
+adb install --user 0 -r releases/RobotFlow-v0.6.0-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 

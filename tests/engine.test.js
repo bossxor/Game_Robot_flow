@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Game, validateLevel, seededRandom } from '../src/engine.js';
 import { defaults, loadSave, storeSave, sanitizeSave, recordWin } from '../src/storage.js';
-import { TOTAL_LEVELS } from '../src/config.js';
+const TOTAL_LEVELS = 200; // Historical prototype fixtures retained as regression coverage.
 function level(blocks, containers, extra = {}) {
   return { levelId: 1, board: { width: 5, height: 5 }, blocks: blocks.map(b => ({ type: 'normal', ...b })), containers, slotCount: 5, powerRobotChance: 0, megaRobot: { requiredGauge: 100, blockCount: 8 }, ...extra };
 }
@@ -90,12 +90,13 @@ test('Local save tolerates broken JSON; rewards, records and unlocks persist', (
   const corrupt = sanitizeSave({ ...save, coins: -9, settings: { musicVolume: 7 }, boosters: { extraSlot: -4 } });
   assert.equal(corrupt.coins, 0); assert.equal(corrupt.settings.musicVolume, 1); assert.equal(corrupt.boosters.extraSlot, 0);
 });
-test('Existing 20-level saves migrate without reset and unlock through level 200', () => {
+test('Existing saves migrate without reset and unlock through level 500', () => {
   const old = defaults(); old.highestUnlockedLevel = 20; old.lastLevel = 20;
   const save = sanitizeSave(old); assert.equal(save.lastLevel, 20);
   recordWin(save, 20, 100, 15, 100); assert.equal(save.highestUnlockedLevel, 21);
   recordWin(save, 199, 100, 15, 100); assert.equal(save.highestUnlockedLevel, 200);
-  recordWin(save, 200, 100, 15, 100); assert.equal(save.highestUnlockedLevel, 200);
+  recordWin(save, 200, 100, 15, 100); assert.equal(save.highestUnlockedLevel, 201);
+  recordWin(save, 500, 100, 15, 100); assert.equal(save.highestUnlockedLevel, 500);
   assert.equal(sanitizeSave(save).cleared[200].bestTime, 100);
 });
 test('The 200 shipped boards are distinct and cover six board patterns', async () => {

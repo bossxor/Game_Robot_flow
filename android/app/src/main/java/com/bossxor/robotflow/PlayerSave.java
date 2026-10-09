@@ -16,7 +16,7 @@ public final class PlayerSave {
     public PlayerSave(Context context) {
         prefs = context.getSharedPreferences("robotflow.native.v1", Context.MODE_PRIVATE);
         if (!prefs.contains("initialized")) migrateLegacy(context);
-        current = clamp(prefs.getInt("current", 1), 1, 200); unlocked = clamp(prefs.getInt("unlocked", 1), current, 200);
+        current = clamp(prefs.getInt("current", 1), 1, LevelLoader.TOTAL); unlocked = clamp(prefs.getInt("unlocked", 1), current, LevelLoader.TOTAL);
         coins = Math.max(0, prefs.getInt("coins", 300));
         music = prefs.getBoolean("music", true); sound = prefs.getBoolean("sound", true); vibration = prefs.getBoolean("vibration", true);
         unlimitedItems = prefs.getBoolean("unlimitedItems", false);
@@ -38,7 +38,7 @@ public final class PlayerSave {
     public int win(NativeGame game) {
         int id = game.level.id, reward = cleared(id) ? game.level.reward / 4 : game.level.reward;
         float best = record(id); if (best == 0 || game.time < best) prefs.edit().putFloat("record" + id, (float)game.time).apply();
-        coins += reward; unlocked = Math.max(unlocked, Math.min(200, id + 1)); current = Math.min(200, id + 1); persist(); return reward;
+        coins += reward; unlocked = Math.max(unlocked, Math.min(LevelLoader.TOTAL, id + 1)); current = Math.min(LevelLoader.TOTAL, id + 1); persist(); return reward;
     }
     public void reset() { prefs.edit().clear().commit(); current = unlocked = 1; coins = 300; music = sound = vibration = true; unlimitedItems = false; musicVolume = .35f; soundVolume = .65f; for(int i=0;i<4;i++)boosters[i]=i==1?2:3; persist(); }
     private void migrateLegacy(Context context) {
@@ -64,12 +64,12 @@ public final class PlayerSave {
         }
         if(latest == null)return;
         try {
-            SharedPreferences.Editor e=prefs.edit().putInt("current",clamp(latest.optInt("lastLevel",1),1,200)).putInt("unlocked",clamp(latest.optInt("highestUnlockedLevel",1),1,200)).putInt("coins",latest.optInt("coins",300));
+            SharedPreferences.Editor e=prefs.edit().putInt("current",clamp(latest.optInt("lastLevel",1),1,LevelLoader.TOTAL)).putInt("unlocked",clamp(latest.optInt("highestUnlockedLevel",1),1,LevelLoader.TOTAL)).putInt("coins",latest.optInt("coins",300));
             JSONObject b=latest.optJSONObject("boosters"),s=latest.optJSONObject("settings"),records=latest.optJSONObject("cleared");
             String[] keys={"extraSlot","colorClear","shuffle","pullOut"};
             if(b!=null)for(int i=0;i<4;i++)e.putInt("booster"+i,b.optInt(keys[i],i==1?2:3));
             if(s!=null)e.putBoolean("music",s.optBoolean("music",true)).putBoolean("sound",s.optBoolean("soundEffect",true)).putBoolean("vibration",s.optBoolean("vibration",true)).putFloat("musicVolume",(float)s.optDouble("musicVolume",.35)).putFloat("soundVolume",(float)s.optDouble("sfxVolume",.65));
-            if(records!=null)for(int i=1;i<=200;i++){JSONObject r=records.optJSONObject(String.valueOf(i));if(r!=null)e.putFloat("record"+i,(float)r.optDouble("bestTime",0));}
+            if(records!=null)for(int i=1;i<=LevelLoader.TOTAL;i++){JSONObject r=records.optJSONObject(String.valueOf(i));if(r!=null)e.putFloat("record"+i,(float)r.optDouble("bestTime",0));}
             e.apply();
         } catch (Exception ignored) { }
     }

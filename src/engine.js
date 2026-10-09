@@ -1,7 +1,7 @@
-export const COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
-export const PALETTE = { red: '#f07865', blue: '#66b6de', yellow: '#f5ca62', green: '#84c997', purple: '#b19add' };
-export const COLOR_NAMES = { red: '코랄', blue: '블루', yellow: '옐로', green: '민트', purple: '퍼플' };
-export const SYMBOLS = { red: '●', blue: '◆', yellow: '★', green: '▲', purple: '✚' };
+export const COLORS = ['red', 'blue', 'yellow', 'green', 'purple', 'orange', 'pink'];
+export const PALETTE = { red: '#ef7868', blue: '#61ace2', yellow: '#f4ca60', green: '#83c6a3', purple: '#8b78b8', orange: '#ffa052', pink: '#ed96bc' };
+export const COLOR_NAMES = { red: '코랄', blue: '블루', yellow: '옐로', green: '민트', purple: '퍼플', orange: '오렌지', pink: '핑크' };
+export const SYMBOLS = { red: '●', blue: '◆', yellow: '★', green: '▲', purple: '✚', orange: '■', pink: '♥' };
 export function seededRandom(seed) {
   return () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
@@ -9,7 +9,7 @@ export function validateLevel(level) {
   const fail = message => { throw new Error(message); };
   if (!level || !Number.isInteger(level.levelId) || level.levelId < 1) fail('levelId는 양의 정수여야 합니다.');
   const { width, height } = level.board || {};
-  if (![width, height].every(n => Number.isInteger(n) && n >= 3 && n <= 16)) fail('필드 크기는 3~16칸이어야 합니다.');
+  if (![width, height].every(n => Number.isInteger(n) && n >= 3 && n <= 48)) fail('필드 크기는 3~48칸이어야 합니다.');
   if (!Array.isArray(level.blocks) || !level.blocks.length) fail('블록이 필요합니다.');
   const positions = new Set();
   for (const b of level.blocks) {
@@ -51,12 +51,14 @@ export class Game {
     this.level = structuredClone(level);
     this.width = level.board.width; this.height = level.board.height;
     this.blocks = level.blocks.map((b, id) => ({ ...b, id, removed: false, reserved: false }));
-    this.queue = level.containers.map(c => ({ ...c, remaining: c.robotCount, taken: false, mega: false }));
+    this.queue = level.containers.map(c => ({ ...c, remaining: c.robotCount, loaded: 0, taken: false, mega: false }));
     this.slots = Array(level.slotCount).fill(null);
     this.jobs = []; this.gauge = 0; this.time = 0; this.moves = 0; this.collected = 0;
     this.status = 'playing'; this.paused = false; this.random = random; this.onEvent = onEvent;
     this.spawnClock = 0; this.jobId = 0; this.colorClearUsed = false;
     this.completedColors = new Set();
+    this.construction = level.board.width > 16;
+    this.truckCargo = 0; this.truckPending = 0; this.truckTime = 0; this.truckState = 'loading'; this.delivered = 0;
     this.refreshReachable();
   }
   get remainingBlocks() { return this.blocks.filter(b => !b.removed).length; }
@@ -104,13 +106,13 @@ export class Game {
     return true;
   }
   spawn(c, index) {
-    if (c.remaining <= 0 || this.jobs.filter(j => j.containerId === c.id).length >= 6) return;
+    if (c.remaining <= 0 || this.jobs.filter(j => j.containerId === c.id).length >= (this.construction ? Math.round(8*Math.max(1,this.width/32)) : 6)) return;
     const origin = this.slotOrigin(index);
     let start = { x: Math.max(-1, Math.min(this.width, Math.round(origin.x))), y: this.height + 2 };
     let flood = this.flood(start), targets = this.available(c.color);
     if (!targets.length) return;
-    const type = c.mega ? 'mega' : this.random() < (c.specialRobotChance ?? this.level.powerRobotChance) ? 'power' : 'mini';
-    const capacity = type === 'mega' ? this.level.megaRobot.blockCount : type === 'power' ? 3 : 1;
+    const type = c.mega ? 'mega' : this.random() < (c.specialRobotChance ?? this.level.powerRobotChance) ? (this.construction ? 'mega' : 'power') : 'mini';
+    const capacity = Math.min(this.construction ? c.remaining : 256,type === 'mega' ? this.level.megaRobot.blockCount : type === 'power' ? 3 : 1);
     const route = [{ ...start }], selected = [];
     for (let k = 0; k < capacity && targets.length; k++) {
       const options = targets.flatMap(b => this.neighbors(b).filter(p => flood.distances.has(`${p.x},${p.y}`)).map(p => ({ b, p, d: flood.distances.get(`${p.x},${p.y}`), tie: this.random() })));
@@ -124,11 +126,12 @@ export class Game {
       targets = targets.filter(t => t.id !== b.id); start = p; flood = this.flood(start);
     }
     if (!selected.length) return;
-    const returnStart = { x: Math.max(-1, Math.min(this.width, Math.round(origin.x))), y: this.height + 2 };
+    const destination = this.construction ? {x:(this.width-1)/2,y:this.height+2.6} : origin;
+    const returnStart = { x: Math.max(-1, Math.min(this.width, Math.round(destination.x))), y: this.height + 2 };
     let cursor = returnStart; const returnPath = [];
     while (cursor) { returnPath.push(cursor); cursor = flood.parents.get(`${cursor.x},${cursor.y}`); }
-    route.push(...returnPath.reverse().slice(1), origin);
-    c.remaining--; c.mega = false; c.hasWorked = true;
+    route.push(...returnPath.reverse().slice(1), destination);
+    c.remaining -= this.construction ? selected.length : 1; c.mega = false; c.hasWorked = true;
     this.jobs.push({ id: this.jobId++, containerId: c.id, color: c.color, type, x: origin.x, y: origin.y, route, step: 0, selected, collected: 0 });
     if (type === 'power') this.addGauge(5);
     this.onEvent({ type, color: c.color });
@@ -150,16 +153,23 @@ export class Game {
     if (this.paused || this.status !== 'playing') return;
     dt = Math.max(0, Math.min(dt, 0.1)); this.time += dt;
     for (const j of this.jobs) {
-      let travel = dt * (j.type === 'mega' ? 10 : 14);
+      let travel = dt * (this.construction ? (j.type === 'mega' ? 3.8 : 5.2)*Math.max(1,this.width/32) : (j.type === 'mega' ? 10 : 14));
       while (travel > 0 && j.step < j.route.length) {
         const p = j.route[j.step], distance = Math.hypot(p.x - j.x, p.y - j.y);
         if (distance <= travel) {
           j.x = p.x; j.y = p.y; travel -= distance; j.step++;
-          if (p.collect !== undefined) { this.removeBlock(p.collect); j.collected++; }
+          if (p.collect !== undefined && !this.blocks[p.collect].removed) { this.removeBlock(p.collect); j.collected++; }
         } else { j.x += (p.x - j.x) / distance * travel; j.y += (p.y - j.y) / distance * travel; travel = 0; }
       }
     }
+    if(this.construction)for(const j of this.jobs)if(j.step>=j.route.length){this.truckPending+=j.collected;this.delivered+=j.collected;const c=this.queue.find(c=>c.id===j.containerId);if(c)c.loaded+=j.collected;}
     this.jobs = this.jobs.filter(j => j.step < j.route.length);
+    if(this.construction){
+      if(this.truckState==='loading'){
+        const load=Math.min(20-this.truckCargo,this.truckPending);this.truckCargo+=load;this.truckPending-=load;
+        if(this.truckCargo===20 || (this.remainingBlocks===0 && !this.jobs.length && this.truckCargo>0)){this.truckState='leaving';this.truckTime=0;}
+      }else if((this.truckTime+=dt)>=1.4){this.truckState='loading';this.truckTime=0;this.truckCargo=0;}
+    }
     for (let i = 0; i < this.slots.length; i++) {
       const c = this.slots[i];
       if (c && !this.jobs.some(j => j.containerId === c.id) && (c.remaining === 0 || this.completedColors.has(c.color) || this.remainingBlocks === 0)) {
@@ -171,7 +181,7 @@ export class Game {
       this.spawnClock = 0;
       this.slots.forEach((c, i) => { if (c) this.spawn(c, i); });
     }
-    if (this.remainingBlocks === 0 && this.jobs.length === 0) this.finish('won');
+    if (this.remainingBlocks === 0 && this.jobs.length === 0){if(!this.construction || (!this.truckCargo && !this.truckPending && this.truckState==='loading'))this.finish('won');}
     else if (!this.jobs.length) {
       const canWork = this.slots.some(c => c && c.remaining > 0 && this.available(c.color).length);
       const canSelect = this.slots.includes(null) && this.queue.some(c => this.isUnlocked(c));
@@ -185,7 +195,8 @@ export class Game {
     this.slots.push(null); this.revive(); return true;
   }
   clearColor(color) {
-    if (this.paused || this.status === 'won' || this.colorClearUsed || !this.blocks.some(b => !b.removed && b.color === color)) return false;
+    if (this.paused || this.status === 'won' || (this.colorClearUsed && !this.unlimitedItems) || !this.blocks.some(b => !b.removed && b.color === color)) return false;
+    if(this.construction){const count=this.blocks.filter(b=>!b.removed&&b.color===color).length;this.truckPending+=count;this.delivered+=count;}
     this.blocks.filter(b => !b.removed && b.color === color).forEach(b => this.removeBlock(b.id));
     this.slots.forEach(c => { if (c?.color === color) c.hasWorked = true; });
     this.colorClearUsed = true; this.revive(); return true;
