@@ -1,7 +1,7 @@
 # RoboRelay — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-최신 설치 파일: [RoboRelay v0.10.0 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.10.0), 로컬 경로 `releases/RoboRelay-v0.10.0-native-3d-debug.apk`.
+최신 설치 파일: [RoboRelay v0.10.1 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.10.1), 로컬 경로 `releases/RoboRelay-v0.10.1-native-3d-debug.apk`.
 
 v0.10.0은 레벨 표지판을 든 로봇, 영어 난이도 배지, 최대 3행 자동 승격 대기열과 원색 팔레트를 적용했습니다. 열쇠·잠금 컨테이너, 색상 회수 조건 봉인, 미스터리 컨테이너를 추가했습니다. [변경·검증 기록](docs/roborelay-v010.md)
 
@@ -56,7 +56,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RoboRelay-v0.10.0-native-3d-debug.apk
+adb install --user 0 -r releases/RoboRelay-v0.10.1-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 

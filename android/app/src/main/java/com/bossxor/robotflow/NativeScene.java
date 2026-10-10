@@ -244,6 +244,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
                 float stride=(float)Math.sin(distance*6+ (side==1?Math.PI:0))*.13f;
                 part(x,z,size,angle,side*.19f,.15f,stride,.24f,.23f,.35f,cream,rounded);
                 boolean wave=preview||game!=null&&game.status==NativeGame.WON;
+                if(preview)part(x,z,size,angle,side*.51f,1.35f,-.08f,.13f,.62f,.15f,color,rounded);
                 part(x,z,size,angle,side*(wave?.50f:.39f),preview?1.70f:wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,preview?-.08f:carrying?.32f:-stride,.19f,.27f,.23f,cream,rounded);
                 part(x,z,size,angle,side*.52f,1+bob,0,.12f,.25f,.3f,cream,sphere);
             }
