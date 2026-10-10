@@ -1,9 +1,9 @@
 {
-  "name": "robot-flow",
-  "version": "0.7.2",
+  "name": "roborelay",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Robot Flow — color matching robot puzzle",
+  "description": "RoboRelay — color matching robot puzzle",
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",

@@ -9,7 +9,7 @@ public final class NativeGame {
     public static final String[] COLOR_NAMES = {"코랄", "블루", "옐로", "민트", "퍼플", "오렌지", "핑크"};
     public static final int[] COLORS = {0xffef7868, 0xff61ace2, 0xfff4ca60, 0xff83c6a3, 0xff8b78b8, 0xffffa052, 0xffed96bc};
     public static class Level {
-        public int id, width, height, difficulty, theme, slotCount = 5, revealDepth = 100, reward = 100;
+        public int id, width, height, difficulty, theme, queueVersion, slotCount = 5, revealDepth = 100, reward = 100;
         public boolean autoFinish;
         public int megaRequired = 100, megaCapacity = 8;
         public double powerChance = 0;
@@ -68,6 +68,7 @@ public final class NativeGame {
 
     public NativeGame(Level level) { this(level, new Random()); }
     public NativeGame(Level level, Random random) {
+        QueuePlanner.prepare(level);
         this.level = level; this.random = random;
         width = level.width; height = level.height; gridWidth = width + 2; gridHeight = height + 7;
         portalSpan=width/.762f;

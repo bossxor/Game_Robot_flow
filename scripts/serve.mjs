@@ -13,4 +13,4 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': `${mime[extname(path)] || 'application/octet-stream'}; charset=utf-8`, 'Cache-Control': 'no-cache' }).end(data);
   } catch { res.writeHead(404).end('Not found'); }
 });
-server.listen(Number(process.env.PORT || 5173), '127.0.0.1', () => console.log(`Robot Flow: http://localhost:${server.address().port}`));
+server.listen(Number(process.env.PORT || 5173), '127.0.0.1', () => console.log(`RoboRelay: http://localhost:${server.address().port}`));
