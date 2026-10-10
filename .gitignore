@@ -15,6 +15,8 @@ android/local.properties
 android/app/src/main/assets/
 *.jks
 *.keystore
+!android/keystore/robo-relay.jks
+android/keystore.properties
 .build/
 releases/
 참고앱/

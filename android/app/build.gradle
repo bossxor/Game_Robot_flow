@@ -1,14 +1,26 @@
 plugins { id 'com.android.application' }
 
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) keystoreProps.load(new FileInputStream(keystorePropsFile))
+
 android {
     namespace 'com.bossxor.robotflow'
     compileSdk 36
     defaultConfig {
-        applicationId 'com.bossxor.robotflow'
+        applicationId 'com.bossxor.roborelay'
         minSdk 26
         targetSdk 36
         versionCode 1
         versionName '0.1.0'
+    }
+    signingConfigs {
+        roboRelay {
+            storeFile rootProject.file('keystore/robo-relay.jks')
+            storePassword keystoreProps.getProperty('storePassword', 'RoboRelay0.1')
+            keyAlias keystoreProps.getProperty('keyAlias', 'robo-relay')
+            keyPassword keystoreProps.getProperty('keyPassword', 'RoboRelay0.1')
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -16,7 +28,14 @@ android {
     }
     buildFeatures { buildConfig true }
     buildTypes {
-        release { minifyEnabled false }
+        debug {
+            signingConfig signingConfigs.roboRelay
+            applicationIdSuffix ''
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.roboRelay
+        }
     }
 }
 

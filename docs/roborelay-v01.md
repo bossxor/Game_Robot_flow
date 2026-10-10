@@ -1,7 +1,8 @@
-# RoboRelay v0.1.0
+# Robo Relay v0.1.0
 
 첫 공개 빌드. versionCode 1.
 
+- 표시 이름 **Robo Relay**, 패키지 `com.bossxor.roborelay`, 전용 `robo-relay` 서명
 - 배속 1/3/5 저장, 자동 마무리 10배
 - 로봇 본체=컨테이너 색, 흰 포인트, 어두운 외곽선
 - 로켓 상승 + 안착 먼지
