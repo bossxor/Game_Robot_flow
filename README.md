@@ -1,7 +1,9 @@
 # RoboRelay — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-최신 설치 파일: [RoboRelay v0.9.3 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.9.3), 로컬 경로 `releases/RoboRelay-v0.9.3-native-3d-debug.apk`.
+최신 설치 파일: [RoboRelay v0.10.0 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.10.0), 로컬 경로 `releases/RoboRelay-v0.10.0-native-3d-debug.apk`.
+
+v0.10.0은 레벨 표지판을 든 로봇, 영어 난이도 배지, 최대 3행 자동 승격 대기열과 원색 팔레트를 적용했습니다. 열쇠·잠금 컨테이너, 색상 회수 조건 봉인, 미스터리 컨테이너를 추가했습니다. [변경·검증 기록](docs/roborelay-v010.md)
 
 v0.9.3은 새 메인과 열 단위 중앙 정렬, 컨테이너 로켓 이동, 두꺼운 묶음 연결선, 컬러 제거의 1.6배 확대·드래그 선택을 포함합니다. 마지막 자동 마무리는 10배속입니다. [기기 검증 기록](docs/v093-validation.md)
 
@@ -21,7 +23,7 @@ Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 최신 APK에는
 - 걷기·회전·집기·운반·탑승, 공용 트럭 적재·출발, 최대 3대 대기·앞자리 이동
 - 수백~2,304개 자재를 구역별 GPU 버퍼로 렌더링, 제거 구역만 갱신
 - 화면 높이에 맞춰 카메라 영역을 늘이거나 줄이고 하단 조작부를 고정 배치
-- 대기열은 평면 4열·보통 4행(긴 화면 5행)과 세로 스와이프. 각 열의 맨 앞만 선택 가능
+- 대기열은 평면 4열·최대 3행만 표시. 각 열의 맨 앞만 선택하며 숨겨진 다음 컨테이너가 자동으로 올라옴
 - 크림·차콜·오렌지 UI, 그림 아이템 4개와 일시정지 2×2 아이콘
 - 앱에 전체 스테이지 수를 표시하지 않으며 미해금 스테이지는 `?`로 표시
 
@@ -54,7 +56,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RoboRelay-v0.9.3-native-3d-debug.apk
+adb install --user 0 -r releases/RoboRelay-v0.10.0-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 

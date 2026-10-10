@@ -3,6 +3,7 @@ package com.bossxor.robotflow;
 import android.app.*;
 import android.content.*;
 import android.graphics.Typeface;
+import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.os.*;
@@ -63,19 +64,28 @@ public final class MainActivity extends Activity {
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
         if(game!=null&&game.status!=NativeGame.WON&&!inspect){save.streak=0;save.persist();}game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
         content.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffa6e6ee,0xffc9efeb,0xffc5eca6}));
-        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(126)));
+        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(100)));
         try{
             FrameLayout hero=new FrameLayout(this);
             scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);
             hero.addView(scene,new FrameLayout.LayoutParams(-1,-1));
             boolean compactHome=getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density<700;
-            TextView stage=text("STAGE\n"+String.format(Locale.KOREA,"%03d",save.current),compactHome?18:22,0xffffffff,true);
-            GradientDrawable stageFace=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xffc286f4,0xff8f51cf});stageFace.setCornerRadius(dp(30));stageFace.setStroke(dp(3),0xffe8caff);stage.setBackground(stageFace);stage.setElevation(dp(5));
-            FrameLayout.LayoutParams badge=new FrameLayout.LayoutParams(dp(compactHome?104:136),dp(compactHome?68:84),Gravity.TOP|(compactHome?Gravity.RIGHT:Gravity.CENTER_HORIZONTAL));badge.topMargin=dp(6);badge.rightMargin=compactHome?dp(16):0;hero.addView(stage,badge);
+            TextView stage=text("LEVEL\n"+save.current,compactHome?34:42,0xffffffff,true);
+            android.text.SpannableString stageLabel=new android.text.SpannableString("LEVEL\n"+save.current);stageLabel.setSpan(new android.text.style.RelativeSizeSpan(.45f),0,5,0);stage.setText(stageLabel);
+            stage.setShadowLayer(dp(1),0,dp(2),0xff653299);
+            FrameLayout.LayoutParams badge=new FrameLayout.LayoutParams(1,1,Gravity.TOP|Gravity.LEFT);hero.addView(stage,badge);
+            hero.addOnLayoutChangeListener((v,left,top,right,bottom,oldLeft,oldTop,oldRight,oldBottom)->{
+                if(right-left==oldRight-oldLeft&&bottom-top==oldBottom-oldTop)return;
+                float[] bounds=NativeScene.levelBadgeBounds(right-left,bottom-top);FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)stage.getLayoutParams();
+                lp.leftMargin=Math.round(bounds[0]);lp.topMargin=Math.round(bounds[1]);lp.width=Math.round(bounds[2]);lp.height=Math.round(bounds[3]);stage.setLayoutParams(lp);
+                stage.setTextSize(Math.min(42,bounds[3]/getResources().getDisplayMetrics().density*.46f));
+            });
             content.addView(hero,new LinearLayout.LayoutParams(-1,0,1));
         }catch(Exception error){toast(error.getMessage());}
         LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(24),dp(4),dp(24),dp(12));
-        TextView badge=text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0])+(save.streak>0?"  ·  "+save.streak+"연승":""),13,0xff557768,true);bottom.addView(badge,new LinearLayout.LayoutParams(-1,dp(30)));
+        int difficulty=save.current%10==0?2:save.current%5==0?1:0;
+        TextView badge=text(new String[]{"Normal","Hard","Super Hard"}[difficulty],16,Color.WHITE,true);badge.setBackground(background(new int[]{0xff3677e7,0xff9644db,0xffef365c}[difficulty],14));
+        LinearLayout.LayoutParams difficultyBadge=new LinearLayout.LayoutParams(dp(difficulty==2?142:112),dp(30));difficultyBadge.gravity=Gravity.CENTER;bottom.addView(badge,difficultyBadge);
         Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xffffffff);play.setShadowLayer(dp(2),0,dp(2),0xff39784a);
         GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffb5ed67,0xff63c33c});face.setCornerRadius(dp(32));face.setStroke(dp(4),0xfffff7dc);
         GradientDrawable base=background(0xff3f873c,32);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,18);
@@ -123,7 +133,7 @@ public final class MainActivity extends Activity {
             if(key.equals("queue-page")){controls.page=Math.max(0,controls.page+value);controls.invalidate();return;}
             if(key.equals("capsule")){
                 if(controls.pullMode){if(save.hasBooster(3)&&game.pullOut(value)){save.consumeBooster(3);controls.pullMode=false;effect("select");}else toast("뒤쪽에 잠긴 컨테이너를 선택하세요.");}
-                else if(!game.select(value))toast("묶음 전체가 들어갈 빈칸과 맨 앞 컨테이너를 확인하세요.");
+                else if(!game.select(value))toast(game.keyLocked(game.capsule(value))?"보드의 열쇠를 먼저 회수하세요.":"묶음 전체가 들어갈 빈칸과 맨 앞 컨테이너를 확인하세요.");
             }else if(key.equals("booster"))useBooster(value);
             if(controls!=null)controls.invalidate();
         }

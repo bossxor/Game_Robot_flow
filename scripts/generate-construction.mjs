@@ -57,6 +57,12 @@ for(let id=1;id<=500;id++){
   const difficulty=id%10===0?2:id%5===0?1:0,capsules=containers(board);
   if(difficulty){for(let i=0;i<capsules.length-1;i++){const a=capsules[i],count=difficulty===2?3:2,members=capsules.slice(i,i+count);if(members.length===count&&members.every(c=>c.depth===a.depth&&c.color===a.color)){for(const c of members)c.group=a.id;i+=count-1;}}}
   const level={levelId:id,name:names[(id-1)%10],difficulty,theme:Math.floor((id-1)/10)%3,autoFinish:true,board:{width:size,height:size},slotCount:5,revealDepth:100,reward:100+Math.floor(id/10)*10+difficulty*30,powerRobotChance:0,megaRobot:{requiredGauge:100,blockCount:8},blocks,containers:capsules};
+  if(id>=6&&(id%5===1||id%10===0)){
+    const exposed=new Set(blocks.filter(b=>b.x===0||b.y===0||b.x===size-1||b.y===size-1).map(b=>b.color));
+    const lockColor=colors.find(c=>!exposed.has(c)&&blocks.some(b=>b.color===c));
+    if(lockColor)level.keys=[{id:1,x:Math.floor(size/2),y:size-1,lockColor}];
+  }
+  if(id>=8&&(id%5===3||id%10===0))level.seals=[{x:Math.floor(size/2)-3,y:Math.floor(size/2)-3,width:6,height:6,color:colors[board[size-1][Math.floor(size/2)]],count:24}];
   const path=`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,text=JSON.stringify(level)+'\n';
   const previous=await readFile(path,'utf8').catch(error=>{if(error.code==='ENOENT')return null;throw error;});
   if(previous!==text)await writeFile(path,text);

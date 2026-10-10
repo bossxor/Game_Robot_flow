@@ -13,8 +13,8 @@ public final class NativeCoreTests {
         return l;
     }
     static void rules(){
-        check(GameLayout.compactHeight(384,384,12)==384,"long queue retains four visible rows");
-        check(GameLayout.compactHeight(384,384,3)==324&&GameLayout.compactHeight(384,384,1)==204&&GameLayout.compactHeight(384,384,0)==144,"empty rows reclaim controls height");
+        check(GameLayout.rowCapacity(384)==3&&GameLayout.compactHeight(320,384,12)==320,"long queue shows at most three rows");
+        check(GameLayout.compactHeight(320,384,3)==320&&GameLayout.compactHeight(320,384,1)==200&&GameLayout.compactHeight(320,384,0)==140,"empty rows reclaim controls height");
         check(GameLayout.columnX(0,1)==168&&GameLayout.columnX(0,2)==138&&GameLayout.columnX(0,3)==108,"one two and three containers remain centered at fixed size");
         int[] live=GameLayout.liveLanes(new int[]{3,1,0,3});
         check(Arrays.equals(live,new int[]{0,1,3}),"ragged queue keeps three aligned columns, including gaps in lane IDs");
@@ -68,6 +68,19 @@ public final class NativeCoreTests {
         NativeGame.Level finish=simple();finish.autoFinish=true;for(int i=0;i<3;i++){finish.blocks.add(new NativeGame.Block(i,0,0));finish.capsules.add(new NativeGame.Capsule(i+1,0,1,0));}g=new NativeGame(finish);g.update(.1);check(g.finishing&&g.queue.stream().allMatch(c->c.taken),"fewer than five remaining containers fill free slots automatically");
         NativeGame.Level truckQueue=simple();truckQueue.width=truckQueue.height=7;for(int i=0;i<41;i++)truckQueue.blocks.add(new NativeGame.Block(i%7,i/7,0));g=new NativeGame(truckQueue);check(g.visibleTrucks()==3,"at most three trucks for remaining cargo");g.clearColor(0);check(g.visibleTrucks()==0,"removed cargo needs no extra waiting trucks");
         NativeGame.Level linkedRear=simple();NativeGame.Capsule parent=new NativeGame.Capsule(3,1,1,0);linkedRear.capsules.add(parent);for(int i=0;i<2;i++){NativeGame.Capsule member=new NativeGame.Capsule(i+1,0,1,2);member.group=9;member.blockedBy=new int[]{3};linkedRear.capsules.add(member);}g=new NativeGame(linkedRear);check(g.pullOut(1)&&g.unlocked(g.capsule(1))&&g.unlocked(g.capsule(2)),"pull-out exposes both members of a linked group");
+        NativeGame.Level mechanics=simple();mechanics.blocks.add(new NativeGame.Block(0,0,0));mechanics.blocks.add(new NativeGame.Block(1,0,0));mechanics.blocks.add(new NativeGame.Block(2,0,1));
+        mechanics.keys.add(new NativeGame.BoardKey(1,0,0,1));mechanics.seals.add(new NativeGame.Seal(2,0,1,1,0,2));
+        mechanics.capsules.add(new NativeGame.Capsule(1,0,2,0));mechanics.capsules.add(new NativeGame.Capsule(2,1,1,0));
+        g=new NativeGame(mechanics);check(g.keyLocked(g.capsule(2))&&!g.select(2)&&!g.pullOut(2),"key lock blocks selection and pull-out");
+        check(g.available(1).isEmpty()&&!g.clearColor(1),"covered blocks cannot be collected or cleared");
+        g.remove(2);check(!g.blocks.get(2).removed,"direct remove cannot bypass seal");
+        g.remove(0);check(g.keys.get(0).owned&&g.unlocked(g.capsule(2))&&!g.seals.get(0).open,"key removal unlocks container without opening seal early");
+        g.remove(1);check(g.seals.get(0).open&&g.available(1).size()==1,"exact colour threshold reveals original block");
+        NativeGame fresh=new NativeGame(mechanics);check(!fresh.keys.get(0).owned&&!fresh.seals.get(0).open,"restart resets keys and seals without changing level data");
+        fresh.shuffle();for(NativeGame.Capsule c:fresh.queue)check((c.color==1)==fresh.keyLocked(c),"shuffle preserves matching key lock");
+        NativeGame.Level mystery=simple();mystery.id=13;
+        for(int i=0;i<4;i++){mystery.blocks.add(new NativeGame.Block(i,0,i));NativeGame.Capsule c=new NativeGame.Capsule(i==3?7:i+1,i,1,i==3?3:0);if(i==3)c.blockedBy=new int[]{3};mystery.capsules.add(c);}
+        g=new NativeGame(mystery);check(!g.visible(g.capsule(7)),"rear mystery starts concealed");g.remove(0);check(!g.visible(g.capsule(7)),"one completed colour does not reveal mystery");g.remove(1);check(g.visible(g.capsule(7))&&!g.select(7),"two completed colours reveal without bypassing queue parents");
         System.out.println("Native rule checks passed.");
     }
     static List<NativeGame.Level> read(String path)throws Exception{
@@ -75,6 +88,8 @@ public final class NativeCoreTests {
         for(String line:Files.readAllLines(Paths.get(path))){String[] p=line.split(" ");
             if(p[0].equals("L")){l=simple();l.id=Integer.parseInt(p[1]);l.width=Integer.parseInt(p[2]);l.height=Integer.parseInt(p[3]);l.difficulty=Integer.parseInt(p[4]);l.autoFinish=p[5].equals("1");result.add(l);}
             else if(p[0].equals("B"))l.blocks.add(new NativeGame.Block(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3])));
+            else if(p[0].equals("K"))l.keys.add(new NativeGame.BoardKey(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4])));
+            else if(p[0].equals("S"))l.seals.add(new NativeGame.Seal(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4]),Integer.parseInt(p[5]),Integer.parseInt(p[6])));
             else if(p[0].equals("C")){NativeGame.Capsule c=new NativeGame.Capsule(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4]));c.lane=Integer.parseInt(p[5]);if(p.length>6&&!p[6].equals("-"))c.blockedBy=Arrays.stream(p[6].split(",")).mapToInt(Integer::parseInt).toArray();c.group=Integer.parseInt(p[7]);l.capsules.add(c);}
             else if(p[0].equals("Q"))plannedQueues.computeIfAbsent(l.id,k->new ArrayList<>()).add(line.substring(2));
         }return result;
@@ -87,7 +102,7 @@ public final class NativeCoreTests {
             for(NativeGame.Capsule c:l.capsules){after[c.color]+=c.count;String parents=c.blockedBy.length==0?"-":Integer.toString(c.blockedBy[0]);actual.add(c.id+" "+c.color+" "+c.count+" "+c.depth+" "+c.lane+" "+parents+" "+c.group);}
             check(Arrays.equals(before,after),"exact native inventory "+l.id);
             check(actual.equals(plannedQueues.get(l.id)),"Java and browser queue parity "+l.id);
-            if(l.id>1){NativeGame risky=new NativeGame(l);int lane=(l.id+l.id/10)%4;for(int i=0;i<5;i++){NativeGame.Capsule front=null;for(NativeGame.Capsule c:risky.queue)if(c.lane==lane&&risky.unlocked(c)){front=c;break;}check(front!=null&&risky.available(front.color).isEmpty()&&risky.select(front.id),"premature choice occupies a slot "+l.id);}risky.update(.1);check(risky.status==NativeGame.LOST,"five premature choices deadlock "+l.id);}
+            if(l.id>1){NativeGame risky=new NativeGame(l);for(NativeGame.BoardKey key:risky.keys)for(NativeGame.Block block:risky.blocks)if(block.x==key.x&&block.y==key.y)risky.remove(block.id);int lane=(l.id+l.id/10)%4;for(int i=0;i<5;i++){NativeGame.Capsule front=null;for(NativeGame.Capsule c:risky.queue)if(c.lane==lane&&risky.unlocked(c)){front=c;break;}check(front!=null&&risky.available(front.color).isEmpty()&&risky.select(front.id),"premature choice occupies a slot "+l.id);}risky.update(.1);check(risky.status==NativeGame.LOST,"five premature choices deadlock "+l.id);}
         }
         ArrayList<String> failed=new ArrayList<>();
         for(double chance:new double[]{0,1}){

@@ -67,7 +67,7 @@ public final class NativeHud extends View {
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas); canvas.save(); canvas.scale(density, density);
         float width = getWidth() / density, height = getHeight() / density;
-        canvas.drawColor(BACK); targets.clear(); animating = false;
+        canvas.drawColor(new int[]{0xffeee4cd,0xffdcc9e8,0xffccdfe9}[game.level.theme]); targets.clear(); animating = false;
         synchronized (game) { if (header) drawHeader(canvas, width); else drawControls(canvas, width, height); }
         canvas.restore();
         if (animating && !game.paused) postInvalidateOnAnimation();
@@ -76,22 +76,26 @@ public final class NativeHud extends View {
         box(c, 13, 26, 38, 38, 0xffd4b895, 12);
         box(c, 13, 23, 38, 38, CREAM, 12);
         GameIcons.draw(c, paint, 5, 32, 42, 27); hit(8, 18, 48, 48, "pause", 0);
-        label(c, String.format(Locale.KOREA, "STAGE %03d", game.level.id), width / 2, 53, 25, INK);
+        label(c, "Level " + game.level.id, width / 2, 43, 23, INK);
         box(c, width - 86, 26, 72, 38, 0xffbe945e, 12);
         box(c, width - 86, 23, 72, 38, 0xffffca76, 12);
         label(c, "▶ " + (game.finishing?NativeGame.FINISH_SPEED:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
-        label(c,new String[]{"NORMAL","HARD","SUPER HARD"}[game.level.difficulty],width/2,65,8,game.level.difficulty==2?0xffb66a95:game.level.difficulty==1?0xffb56b36:MUTED_COLOR);
+        float badgeWidth=game.level.difficulty==2?110:78;
+        int badgeColor=new int[]{0xff3677e7,0xff9644db,0xffef365c}[game.level.difficulty];
+        box(c,width/2-badgeWidth/2,49,badgeWidth,22,shade(badgeColor,.65f),9);
+        box(c,width/2-badgeWidth/2,47,badgeWidth,22,badgeColor,9);
+        label(c,new String[]{"Normal","Hard","Super Hard"}[game.level.difficulty],width/2,63,12,Color.WHITE);
         // The builder gauge stays close to the title instead of splitting the container rows.
-        box(c, width / 2 - 42, 69, 84, 3, 0xffdac6a6, 2);
-        if (game.gauge > 0) box(c, width / 2 - 42, 69, 84f * game.gauge / game.level.megaRequired, 3, 0xffee9d4d, 2);
+        box(c, width / 2 - 42, 75, 84, 3, 0xffdac6a6, 2);
+        if (game.gauge > 0) box(c, width / 2 - 42, 75, 84f * game.gauge / game.level.megaRequired, 3, 0xffee9d4d, 2);
     }
     private static final int MUTED_COLOR=0xff93806b;
-    private static final int[] CARD_COLORS={0xfff36a5a,0xff379ddf,0xfff5c642,0xff52c77b,0xffa760dd,0xffffa438,0xffee73be};
+    private static final int[] CARD_COLORS=NativeGame.COLORS;
     private static int shade(int color, float factor) {
         return Color.rgb(Math.min(255, (int)(Color.red(color) * factor)), Math.min(255, (int)(Color.green(color) * factor)), Math.min(255, (int)(Color.blue(color) * factor)));
     }
     private void number(Canvas c, String value, float x, float y, float width, boolean bright) {
-        paint.setShader(null); paint.setTypeface(Typeface.DEFAULT_BOLD); paint.setTextAlign(Paint.Align.CENTER);
+        paint.setShader(null); paint.setTypeface(Typeface.create("sans-serif-condensed",Typeface.BOLD)); paint.setTextAlign(Paint.Align.CENTER);
         float size = 28; paint.setTextSize(size);
         while (paint.measureText(value) > width - 6 && size > 15) paint.setTextSize(--size);
         paint.setStyle(Paint.Style.STROKE); paint.setStrokeJoin(Paint.Join.ROUND); paint.setStrokeWidth(3.5f);
@@ -101,7 +105,8 @@ public final class NativeHud extends View {
     private void card(Canvas c, NativeGame.Capsule capsule, float x, float y, boolean active, boolean front, boolean touched) {
         float size = GameLayout.CARD;
         c.save(); if (touched) { c.translate(x + size / 2, y + size / 2); c.scale(.96f, .96f); c.translate(-x - size / 2, -y - size / 2); }
-        int color = CARD_COLORS[capsule.color];
+        boolean visible=active||game.visible(capsule);
+        int color = visible?CARD_COLORS[capsule.color]:0xff646779;
         box(c,x-2,y+7,size+4,size+6,0x290b1930,13);
         box(c,x-1,y+GameLayout.CARD_DEPTH,size+2,size,0xfffffaf1,12);
         box(c,x+1,y+7,size-2,size,shade(color,.61f),11);
@@ -111,7 +116,11 @@ public final class NativeHud extends View {
         box(c,x+3,y+11,3,size-24,0x22ffffff,2);
         if(!front&&!active)box(c,x,y,size,size+7,0x180d153d,12);
         if(front&&!active){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);paint.setColor(Color.WHITE);c.drawRoundRect(x-1,y-1,x+size+1,y+size+9,13,13,paint);paint.setStyle(Paint.Style.FILL);}
-        number(c,String.valueOf(active?Math.max(0,capsule.count-capsule.loaded):capsule.remaining),x+size/2,y+32,size,active||front);
+        number(c,visible?String.valueOf(active?Math.max(0,capsule.count-capsule.loaded):capsule.remaining):"?",x+size/2,y+32,size,active||front);
+        if(!active&&game.keyLocked(capsule)){
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(3);paint.setColor(0xffffdf37);c.drawRoundRect(x+33,y-7,x+43,y+7,5,5,paint);paint.setStyle(Paint.Style.FILL);
+            box(c,x+29,y+1,18,14,0xffffdf37,4);box(c,x+36,y+6,4,5,INK,2);
+        }
         c.restore();
     }
     private Motion position(int id, float x, float y, long now) {
@@ -194,11 +203,11 @@ public final class NativeHud extends View {
         paint.setStrokeWidth(16);paint.setColor(0x55404c64);canvas.drawPath(path,paint);
         PathMeasure measure=new PathMeasure(path,false);float middle=measure.getLength()/2;Path half=new Path();
         paint.setStrokeWidth(12);paint.setStrokeCap(Paint.Cap.BUTT);
-        measure.getSegment(0,middle,half,true);paint.setColor(CARD_COLORS[a.cargo.color]);canvas.drawPath(half,paint);
-        half.reset();measure.getSegment(middle,measure.getLength(),half,true);paint.setColor(CARD_COLORS[b.cargo.color]);canvas.drawPath(half,paint);
+        measure.getSegment(0,middle,half,true);paint.setColor((game.visible(a.cargo)?CARD_COLORS[a.cargo.color]:0xff646779));canvas.drawPath(half,paint);
+        half.reset();measure.getSegment(middle,measure.getLength(),half,true);paint.setColor((game.visible(b.cargo)?CARD_COLORS[b.cargo.color]:0xff646779));canvas.drawPath(half,paint);
         float[] start=new float[2],end=new float[2];measure.getPosTan(0,start,null);measure.getPosTan(measure.getLength(),end,null);
-        paint.setStyle(Paint.Style.FILL);paint.setColor(CARD_COLORS[a.cargo.color]);canvas.drawCircle(start[0],start[1],6,paint);
-        paint.setColor(CARD_COLORS[b.cargo.color]);canvas.drawCircle(end[0],end[1],6,paint);
+        paint.setStyle(Paint.Style.FILL);paint.setColor((game.visible(a.cargo)?CARD_COLORS[a.cargo.color]:0xff646779));canvas.drawCircle(start[0],start[1],6,paint);
+        paint.setColor((game.visible(b.cargo)?CARD_COLORS[b.cargo.color]:0xff646779));canvas.drawCircle(end[0],end[1],6,paint);
         paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeWidth(2);paint.setColor(0x66ffffff);canvas.drawPath(path,paint);
         paint.setStyle(Paint.Style.FILL);paint.setStrokeCap(Paint.Cap.BUTT);
     }
@@ -215,7 +224,7 @@ public final class NativeHud extends View {
         int rows=Math.min(max,GameLayout.rowCapacity(logicalHeight));
         int[] counts=new int[4];for(int i=0;i<4;i++)counts[i]=lanes.get(i).size();
         int[] live=GameLayout.liveLanes(counts);
-        page = Math.min(page, Math.max(0, max - rows));
+        page = 0;
         for(int row=0;row<rows;row++){
             for(int column=0;column<live.length;column++){
                 List<NativeGame.Capsule> lane=lanes.get(live[column]);if(page+row>=lane.size())continue;
@@ -237,6 +246,9 @@ public final class NativeHud extends View {
         // Keep the flight visible even if 10x simulation retires its cargo before landing.
         for(Motion m:motions.values())if(m.rocket){m.advance(now);rocket(c,m,now);if(m.progress<1)activeLinks.add(new LinkNode(m.cargo,m.x,m.y));}
         links(c,queuedLinks);links(c,activeLinks);
+        // Numbers stay above the pipes, including moving linked containers.
+        for(LinkNode n:queuedLinks)number(c,game.visible(n.cargo)?String.valueOf(n.cargo.remaining):"?",n.x+24,n.y+32,48,game.unlocked(n.cargo));
+        for(LinkNode n:activeLinks)number(c,String.valueOf(Math.max(0,n.cargo.count-n.cargo.loaded)),n.x+24,n.y+32,48,true);
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
         if (clearMode) label(c,"색 선택 · 드래그로 이동",192,65,9,INK);
         float tray = GameLayout.trayTop(logicalHeight);
@@ -257,7 +269,7 @@ public final class NativeHud extends View {
         c.restore();
     }
     private String description(Target t) {
-        if (t.key.equals("capsule")) { NativeGame.Capsule a = game.capsule(t.id); return NativeGame.COLOR_NAMES[a.color] + " 컨테이너, " + a.remaining + "개, " + (game.unlocked(a) ? "선택 가능" : "뒤쪽"); }
+        if (t.key.equals("capsule")) { NativeGame.Capsule a = game.capsule(t.id); return (game.visible(a)?NativeGame.COLOR_NAMES[a.color]+" 컨테이너, "+a.remaining+"개":"미공개 컨테이너")+", "+(game.keyLocked(a)?"열쇠 필요":game.unlocked(a)?"선택 가능":"뒤쪽"); }
         if (t.key.equals("booster")) return new String[]{"작업 공간 추가", "컬러 제거", "컨테이너 섞기", "뒤쪽 컨테이너 꺼내기"}[t.id] + ", " + save.boosterCount(t.id);
         return t.key.equals("pause") ? "일시정지" : "배속 " + (game.finishing?NativeGame.FINISH_SPEED:speed);
     }
@@ -284,7 +296,7 @@ public final class NativeHud extends View {
         if (event.getAction() == MotionEvent.ACTION_UP) {
             Target selected = pressed; pressed = null;
             float scale = getWidth() / density / GameLayout.WIDTH;
-            if (!header && Math.abs(y - downY) > 30 && downY > GameLayout.QUEUE_Y * scale && downY < GameLayout.trayTop(getHeight() / density / scale) * scale) { page = Math.max(0, page + (y < downY ? 1 : -1)); invalidate(); return true; }
+            if (!header && Math.abs(y - downY) > 30) { invalidate(); return true; }
             if (selected != null && selected.rect.contains(x, y)) { performClick(); actions.action(selected.key, selected.id); }
             invalidate(); return true;
         }

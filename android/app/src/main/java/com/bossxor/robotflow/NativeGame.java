@@ -7,8 +7,8 @@ public final class NativeGame {
     public static final int FINISH_SPEED = 10;
     public static final int PLAYING = 0, WON = 1, LOST = 2;
     public static final String[] COLOR_KEYS = {"red", "blue", "yellow", "green", "purple", "orange", "pink"};
-    public static final String[] COLOR_NAMES = {"코랄", "블루", "옐로", "민트", "퍼플", "오렌지", "핑크"};
-    public static final int[] COLORS = {0xffef7868, 0xff61ace2, 0xfff4ca60, 0xff83c6a3, 0xff8b78b8, 0xffffa052, 0xffed96bc};
+    public static final String[] COLOR_NAMES = {"레드", "블루", "옐로", "그린", "퍼플", "오렌지", "핑크"};
+    public static final int[] COLORS = {0xffff3158, 0xff3655f5, 0xffffd52e, 0xff38d447, 0xffb63cff, 0xffff9425, 0xffff59c7};
     public static class Level {
         public int id, width, height, difficulty, theme, queueVersion, slotCount = 5, revealDepth = 100, reward = 100;
         public boolean autoFinish;
@@ -17,6 +17,19 @@ public final class NativeGame {
         public String name = "로봇 공장";
         public final List<Block> blocks = new ArrayList<>();
         public final List<Capsule> capsules = new ArrayList<>();
+        public final List<Seal> seals = new ArrayList<>();
+        public final List<BoardKey> keys = new ArrayList<>();
+    }
+    public static class Seal {
+        public int x,y,width,height,color,count;
+        public boolean open;
+        public Seal(int x,int y,int width,int height,int color,int count){this.x=x;this.y=y;this.width=width;this.height=height;this.color=color;this.count=count;}
+        boolean contains(Block b){return b.x>=x&&b.x<x+width&&b.y>=y&&b.y<y+height;}
+    }
+    public static class BoardKey {
+        public int id,x,y,lockColor;
+        public boolean owned;
+        public BoardKey(int id,int x,int y,int lockColor){this.id=id;this.x=x;this.y=y;this.lockColor=lockColor;}
     }
     public static class Block {
         public int id, x, y, color;
@@ -25,10 +38,10 @@ public final class NativeGame {
         public Block(int x, int y, int color) { this.x = x; this.y = y; this.color = color; }
     }
     public static class Capsule {
-        public int id, color, count, remaining, depth, lane, loaded, group;
+        public int id, color, count, remaining, depth, lane, loaded, group, lockKey;
         public double selectedAt, lastSpawnAt = -100;
         public int[] blockedBy = new int[0];
-        public boolean taken, retired, mega;
+        public boolean taken, retired, mega, mystery;
         public double powerChance = -1;
         public Capsule(int id, int color, int count, int depth) { this.id = id; this.color = color; this.count = this.remaining = count; this.depth = depth; this.lane = (id-1)%4; }
     }
@@ -51,6 +64,9 @@ public final class NativeGame {
     public final List<Capsule> queue = new ArrayList<>();
     public final List<Bot> bots = new ArrayList<>();
     public final List<Capsule> slots = new ArrayList<>();
+    public final List<Seal> seals = new ArrayList<>();
+    public final List<BoardKey> keys = new ArrayList<>();
+    public final int[] colorCollected = new int[7];
     public final Random random;
     public Listener listener;
     public int status = PLAYING, gauge, collected, moves, nextBotId;
@@ -78,9 +94,13 @@ public final class NativeGame {
             Block b = new Block(original.x, original.y, original.color); b.id = blocks.size();
             blocks.add(b); cells[b.y][b.x] = b;
         }
+        for(Seal s:level.seals)seals.add(new Seal(s.x,s.y,s.width,s.height,s.color,s.count));
+        for(BoardKey k:level.keys)keys.add(new BoardKey(k.id,k.x,k.y,k.lockColor));
         for (Capsule original : level.capsules) {
             Capsule c = new Capsule(original.id, original.color, original.count, original.depth);
             c.blockedBy = original.blockedBy.clone(); c.lane = original.lane; c.powerChance = original.powerChance; c.group=original.group;
+            c.mystery=level.id>=13&&c.depth>=3&&c.id%7==0;
+            for(BoardKey k:keys)if(c.color==k.lockColor)c.lockKey=k.id;
             queue.add(c);
         }
         for (int i = 0; i < level.slotCount; i++) slots.add(null);
@@ -90,20 +110,24 @@ public final class NativeGame {
     private void event(String type, int color, float x, float y) { if (listener != null) listener.event(type, color, x, y); }
     public Capsule capsule(int id) { for (Capsule c : queue) if (c.id == id) return c; return null; }
     public boolean unlocked(Capsule c) {
-        if (c.taken) return false;
+        if (c.taken || keyLocked(c)) return false;
         for (Capsule q : queue) if (!q.taken && q.lane == c.lane && q.depth < c.depth) return false;
         for (int parent : c.blockedBy) { Capsule p = capsule(parent); if (p == null || !p.taken) return false; }
         return true;
     }
     public boolean visible(Capsule c) {
+        if(c.taken)return true;
+        if(c.mystery){int colors=0;for(boolean done:completedColors)if(done)colors++;if(colors<2&&!unlocked(c))return false;}
         int min = Integer.MAX_VALUE;
         for (Capsule q : queue) if (!q.taken) min = Math.min(min, q.depth);
         return unlocked(c) || c.depth - min <= level.revealDepth;
     }
+    public boolean keyLocked(Capsule c){if(c==null)return false;for(BoardKey k:keys)if(k.id==c.lockKey&&!k.owned)return true;return false;}
+    public boolean sealed(Block b){for(Seal s:seals)if(!s.open&&s.contains(b))return true;return false;}
     public Point origin(int slot) { return new Point((width-1)/2f+(slot-(slots.size()-1)/2f)*60/384*portalSpan, height + 4.4f); }
     public List<Block> available(int color) {
         List<Block> found = new ArrayList<>();
-        for (Block b : blocks) if (!b.removed && !b.reserved && b.reachable && (color < 0 || color == b.color)) found.add(b);
+        for (Block b : blocks) if (!b.removed && !b.reserved && b.reachable && !sealed(b) && (color < 0 || color == b.color)) found.add(b);
         return found;
     }
     public Point truckPoint() { return new Point(width/2f, height+1.8f); }
@@ -189,8 +213,11 @@ public final class NativeGame {
         event(bot.kind == 1 ? "mega" : "mini", c.color, bot.x, bot.y);
     }
     public void remove(int id) {
-        Block b = blocks.get(id); if (b.removed) return;
+        Block b = blocks.get(id); if (b.removed || sealed(b)) return;
         b.removed = true; b.reserved = false; b.removedAt = time; collected++;
+        colorCollected[b.color]++;
+        for(Seal s:seals)if(!s.open&&colorCollected[s.color]>=s.count){s.open=true;event("reveal",s.color,s.x,s.y);}
+        for(BoardKey k:keys)if(!k.owned&&k.x==b.x&&k.y==b.y){k.owned=true;event("key",k.lockColor,k.x,k.y);}
         event("collect", b.color, b.x, b.y);
         boolean any = false; for (Block other : blocks) if (!other.removed && other.color == b.color) { any = true; break; }
         if (!any) {
@@ -272,7 +299,7 @@ public final class NativeGame {
     }
     public synchronized boolean clearColor(int color, boolean unlimited) {
         if (paused || status == WON || (colorClearUsed && !unlimited) || color < 0 || color >= COLORS.length) return false;
-        boolean any = false; for (Block b : blocks) if (!b.removed && b.color == color) { remove(b.id);clearedByItem++; any = true; }
+        boolean any = false; for (Block b : blocks) if (!b.removed && !sealed(b) && b.color == color) { remove(b.id);clearedByItem++; any = true; }
         if (!any) return false; colorClearUsed = true; status = PLAYING; return true;
     }
     public synchronized boolean shuffle() {
@@ -281,14 +308,15 @@ public final class NativeGame {
         if (waiting.size() < 2) return false;
         for (int i = waiting.size() - 1; i > 0; i--) {
             Capsule a = waiting.get(i), b = waiting.get(random.nextInt(i + 1));
-            int color = a.color, count = a.count, remaining = a.remaining; double chance = a.powerChance;
-            a.color = b.color; a.count = b.count; a.remaining = b.remaining; a.powerChance = b.powerChance;
-            b.color = color; b.count = count; b.remaining = remaining; b.powerChance = chance;
+            int color = a.color, count = a.count, remaining = a.remaining, lockKey=a.lockKey; double chance = a.powerChance;
+            a.color = b.color; a.count = b.count; a.remaining = b.remaining; a.powerChance = b.powerChance; a.lockKey=b.lockKey;
+            b.color = color; b.count = count; b.remaining = remaining; b.powerChance = chance; b.lockKey=lockKey;
         }
         status = PLAYING; return true;
     }
     public synchronized boolean pullOut(int id) {
         Capsule c = capsule(id); if (paused || status == WON || c == null || c.taken || unlocked(c)) return false;
+        for(Capsule member:selectionGroup(c))if(keyLocked(member))return false;
         for(Capsule member:selectionGroup(c)){int front=member.depth;for(Capsule q:queue)if(!q.taken&&q.lane==member.lane)front=Math.min(front,q.depth);member.depth=front-1;member.blockedBy=new int[0];} status = PLAYING; return true;
     }
 }

@@ -48,3 +48,18 @@
 .card.linked:after{display:none}
 
 #board.clear-target{touch-action:none;cursor:crosshair;outline:3px solid #a760dd;outline-offset:-3px}
+
+/* Reference viewport: three visible queue rows, quiet field, and robot-held level. */
+.play-screen{background:#eee4cd}.play-screen.theme-1{background:#dcc9e8}.play-screen.theme-2{background:#ccdfe9}
+.controls{height:calc(min(100vw,420px)*320/384);min-height:0}
+.game-header h1{margin:0 0 4px;font-size:24px;font-weight:900}
+.difficulty{width:max-content;margin:0 auto 5px;padding:3px 16px;border-radius:12px;font-size:13px;font-weight:900;color:white;background:#3677e7;box-shadow:0 3px #2450a1}
+.difficulty-1{background:#9644db;box-shadow:0 3px #602899}.difficulty-2{background:#ef365c;box-shadow:0 3px #9c2340}
+.home .home-stage{margin:8px auto 0;font-size:16px;min-width:112px}.home .primary{margin-top:0}
+.factory-hero .builder,.factory-hero .crane,.home-truck{display:none}
+.factory-hero .courier{left:21%;width:58%;height:68%;top:31%}
+.stage-balloon{top:2%;width:164px;border-radius:26px;font-weight:900;padding:14px 10px}.stage-balloon strong{font-size:52px}
+.card{font-family:'Arial Rounded MT Bold','Trebuchet MS',sans-serif;font-weight:900}
+.lock{position:absolute;right:-1px;top:-8px;width:18px;height:14px;background:#ffdf37;border:2px solid #8c642d;border-radius:4px;color:#574334;font-size:8px;line-height:11px;font-style:normal;-webkit-text-stroke:0;text-shadow:none}
+.lock:before{content:'';position:absolute;left:3px;top:-10px;width:8px;height:10px;border:3px solid #ffdf37;border-bottom:0;border-radius:7px 7px 0 0}
+@media(max-height:650px){.controls{height:36dvh}.stage-balloon{width:136px;padding:8px}.stage-balloon strong{font-size:38px}}

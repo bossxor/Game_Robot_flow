@@ -26,6 +26,18 @@ public final class LevelLoader {
         level.powerChance = json.optDouble("powerRobotChance", .1); level.revealDepth = json.optInt("revealDepth", 100); level.reward = json.optInt("reward", 100);
         JSONObject mega = json.getJSONObject("megaRobot"); level.megaRequired = mega.getInt("requiredGauge"); level.megaCapacity = mega.getInt("blockCount");
         JSONArray blocks = json.getJSONArray("blocks"), capsules = json.getJSONArray("containers");
+        JSONArray seals=json.optJSONArray("seals"), keys=json.optJSONArray("keys");
+        if(seals!=null)for(int i=0;i<seals.length();i++){
+            JSONObject s=seals.getJSONObject(i);int x=s.getInt("x"),y=s.getInt("y"),w=s.getInt("width"),h=s.getInt("height"),count=s.getInt("count");
+            if(x<0||y<0||w<1||h<1||x+w>level.width||y+h>level.height||count<1)throw new JSONException("Invalid sealed region");
+            level.seals.add(new NativeGame.Seal(x,y,w,h,color(s.getString("color")),count));
+        }
+        if(keys!=null)for(int i=0;i<keys.length();i++){
+            JSONObject k=keys.getJSONObject(i);int keyId=k.getInt("id"),x=k.getInt("x"),y=k.getInt("y");
+            if(keyId<1||x<0||y<0||x>=level.width||y>=level.height)throw new JSONException("Invalid board key");
+            for(NativeGame.BoardKey existing:level.keys)if(existing.id==keyId)throw new JSONException("Duplicate board key");
+            level.keys.add(new NativeGame.BoardKey(keyId,x,y,color(k.getString("lockColor"))));
+        }
         for (int i = 0; i < blocks.length(); i++) { JSONObject b = blocks.getJSONObject(i); level.blocks.add(new NativeGame.Block(b.getInt("x"), b.getInt("y"), color(b.getString("color")))); }
         for (int i = 0; i < capsules.length(); i++) {
             JSONObject c = capsules.getJSONObject(i); NativeGame.Capsule capsule = new NativeGame.Capsule(c.getInt("id"), color(c.getString("color")), c.getInt("robotCount"), c.optInt("depth", 0));

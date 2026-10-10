@@ -10,7 +10,7 @@ test('selection enlarges the view and restores the exact normal view',()=>{
   assert.equal(c.zoom,1);assert.equal(c.panX,0);assert.equal(c.panY,0);
 });
 test('zoomed and dragged coordinates select the original block',()=>{
-  const game={blocks:[{x:2,y:3,color:'blue',removed:false},{x:4,y:3,color:'red',removed:true}]};
+  const game={sealed:()=>false,blocks:[{x:2,y:3,color:'blue',removed:false},{x:4,y:3,color:'red',removed:true}]};
   const r=new ConstructionRenderer({getContext:()=>({}),clientWidth:384,clientHeight:400},game);
   r.bounds={left:40,top:30,cell:6,cy:5,cx:192,centerY:170};r.setClearMode(true);r.camera.zoom=1.6;r.pan(50,-30);
   const point=r.camera.worldToScreen(55,47.5,192,170);

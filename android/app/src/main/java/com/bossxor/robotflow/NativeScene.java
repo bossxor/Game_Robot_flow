@@ -55,7 +55,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         });
     }
     @Override public boolean performClick(){super.performClick();return true;}
-    private int pickColor(float x,float y){NativeGame g=game;if(g==null)return -1;synchronized(g){float[] point=ground(x/Math.max(1,width)*2-1,1-y/Math.max(1,height)*2);int bx=Math.round(point[0]+(g.level.width-1)/2f),by=Math.round(point[2]+(g.level.height-1)/2f);for(NativeGame.Block b:g.blocks)if(!b.removed&&b.x==bx&&b.y==by)return b.color;}return -1;}
+    private int pickColor(float x,float y){NativeGame g=game;if(g==null)return -1;synchronized(g){float[] point=ground(x/Math.max(1,width)*2-1,1-y/Math.max(1,height)*2);int bx=Math.round(point[0]+(g.level.width-1)/2f),by=Math.round(point[2]+(g.level.height-1)/2f);for(NativeGame.Block b:g.blocks)if(!b.removed&&!g.sealed(b)&&b.x==bx&&b.y==by)return b.color;}return -1;}
     private float[] ground(float nx,float ny){float[] inv=new float[16],a=new float[4],b=new float[4];Matrix.invertM(inv,0,vp,0);Matrix.multiplyMV(a,0,inv,0,new float[]{nx,ny,-1,1},0);Matrix.multiplyMV(b,0,inv,0,new float[]{nx,ny,1,1},0);for(int i=0;i<3;i++){a[i]/=a[3];b[i]/=b[3];}float t=(.22f-a[1])/(b[1]-a[1]);return new float[]{a[0]+t*(b[0]-a[0]),.22f,a[2]+t*(b[2]-a[2])};}
     private static float[] rgb(int color) { return new float[]{((color >> 16) & 255) / 255f, ((color >> 8) & 255) / 255f, (color & 255) / 255f, 1}; }
     private static float[] tint(float[] color, float amount) { return new float[]{color[0] * amount, color[1] * amount, color[2] * amount, color[3]}; }
@@ -82,7 +82,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     @Override public void onSurfaceChanged(GL10 gl, int width, int height) { this.width = width; this.height = Math.max(height, 1); GLES20.glViewport(0, 0, width, height); }
     @Override public void onDrawFrame(GL10 gl) {
         long frameStart=SystemClock.elapsedRealtimeNanos();long now = frameStart; double dt = Math.max(0, Math.min(.04, (now - previous) / 1e9)); previous = now;
-        float[] sky=preview?rgb(0xffc9efeb):rgb(new int[]{0xfff1dfbd,0xfff3d5c2,0xffc5d1de}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        float[] sky=preview?rgb(0xffc9efeb):rgb(new int[]{0xffeee4cd,0xffdcc9e8,0xffccdfe9}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glUseProgram(program); GLES20.glUniform1f(glossUniform,preview?.30f:.03f); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
         NativeGame g = game; if (g == null || width == 0) return;
         synchronized (g) {
@@ -108,9 +108,15 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
             // The selection camera must not change robot origins or the road/portal geometry.
             if(selectionZoom!=1||panX!=0||panZ!=0){float zoomHalf=half/selectionZoom;Matrix.orthoM(projection,0,-zoomHalf,zoomHalf,-zoomHalf/aspect,zoomHalf/aspect,.1f,300);Matrix.setLookAtM(view,0,panX,sceneWidth*1.875f,sceneWidth*1.25f+panZ,panX,0,sceneWidth*.146875f+panZ,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);}return;
         }
-        float halfWidth=4.8f;Matrix.orthoM(projection,0,-halfWidth,halfWidth,-halfWidth/aspect,halfWidth/aspect,.1f,100);
+        float halfWidth=homeHalfWidth(aspect);Matrix.orthoM(projection,0,-halfWidth,halfWidth,-halfWidth/aspect,halfWidth/aspect,.1f,100);
         Matrix.setLookAtM(view,0,0,13,17,0,1.0f,0,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);
 
+    }
+    private static float homeHalfWidth(float aspect){return Math.max(4.8f,6*aspect);}
+    public static float[] levelBadgeBounds(int width,int height){
+        float scale=width/(2*homeHalfWidth(width/(float)Math.max(1,height)));
+        float w=3.55f*scale,h=2.45f*.817f*scale,center=height/2f-3.71f*scale;
+        return new float[]{(width-w)/2,center-h/2,w,h};
     }
     private void draw(Mesh mesh, float x, float y, float z, float sx, float sy, float sz, float rotation, float[] color) {
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER,0);
@@ -130,11 +136,11 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         final List<NativeGame.Block> members=new ArrayList<>();
         void refresh(NativeGame g,int chunk){
             if(owner!=g){owner=g;members.clear();hash=-1;for(NativeGame.Block b:g.blocks)if((b.y/8)*8+b.x/8==chunk)members.add(b);}
-            int expected=1;for(NativeGame.Block block:members)expected=31*expected+(block.removed?0:block.color+1);
+            int expected=1;for(NativeGame.Block block:members)expected=31*expected+(block.removed?0:g.sealed(block)?-1:block.color+1);
             if(expected==hash)return;hash=expected;
             if(vertices==null)vertices=ByteBuffer.allocateDirect(64*tileMesh.count*10*4).order(ByteOrder.nativeOrder()).asFloatBuffer();vertices.clear();
             float cx=(g.level.width-1)/2f,cz=(g.level.height-1)/2f;
-            for(NativeGame.Block block:members)if(!block.removed){
+            for(NativeGame.Block block:members)if(!block.removed&&!g.sealed(block)){
                 float[] col=rgb(NativeGame.COLORS[block.color]);
                 for(int n=0;n<tileMesh.count;n++){
                     int k=n*6;float px=tileMesh.buffer.get(k),py=tileMesh.buffer.get(k+1),pz=tileMesh.buffer.get(k+2);
@@ -156,25 +162,35 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     }
     private void drawBoard(NativeGame g) {
         float cx=(g.level.width-1)/2f,cz=(g.level.height-1)/2f;
-        float border=g.level.width*.1875f,scale=g.level.width/32f;
-        draw(rounded,0,-.25f,3*scale,g.level.width*1.25f,.5f,g.level.height+15*scale,0,rgb(new int[]{0xffecd4ab,0xffe9c3a6,0xffaab9c8}[g.level.theme]));
+        float border=g.level.width*.16f,scale=g.level.width/32f;
         draw(rounded,0,.0f,0,g.level.width+border+.4f,.24f,g.level.height+border+.4f,0,rgb(0xffbda88b));
-        draw(rounded,0,.08f,0,g.level.width+border,.18f,g.level.height+border,0,rgb(0xfffff1d4));
-        draw(rounded,0,.16f,0,g.level.width+border*.65f,.04f,g.level.height+border*.65f,0,rgb(0xffc3ad8b));
-        draw(rounded,0,.17f,0,g.level.width+.6f,.03f,g.level.height+.6f,0,rgb(0xffad9576));
+        draw(rounded,0,.08f,0,g.level.width+border,.18f,g.level.height+border,0,rgb(0xffe4dbe9));
+        draw(rounded,0,.17f,0,g.level.width+border*.65f,.03f,g.level.height+border*.65f,0,rgb(0xff827a90));
         for(int cy=0;cy<(g.level.height+7)/8;cy++)for(int x=0;x<(g.level.width+7)/8;x++){int key=cy*8+x;TileChunk tile=chunks.get(key);if(tile==null){tile=new TileChunk();chunks.put(key,tile);}tile.refresh(g,key);tile.render();}
+        for(NativeGame.Seal seal:g.seals)if(!seal.open){
+            float x=seal.x+(seal.width-1)/2f-cx,z=seal.y+(seal.height-1)/2f-cz;
+            draw(rounded,x,.40f,z,seal.width,.5f,seal.height,0,rgb(0xff815548));
+            draw(rounded,x,.68f,z,seal.width-.35f,.08f,seal.height-.35f,0,rgb(0xffdb9a5f));
+            draw(rounded,x,.75f,z,seal.width-.8f,.08f,seal.height-.8f,0,rgb(NativeGame.COLORS[seal.color]));
+            counter(Math.max(0,seal.count-g.colorCollected[seal.color]),x,.85f,z,1.45f);
+        }
+        for(NativeGame.BoardKey key:g.keys)if(!key.owned){
+            float x=key.x-cx,z=key.y-cz;
+            draw(sphere,x,.85f,z-1.2f,1.5f,.30f,1.5f,0,rgb(0xffffdf37));
+            draw(sphere,x,1.02f,z-1.2f,.65f,.05f,.65f,0,rgb(0xff87694a));
+            draw(rounded,x,.85f,z+.2f,.45f,.30f,2.2f,0,rgb(0xffffdf37));
+            draw(rounded,x+.35f,.85f,z+.8f,.9f,.30f,.40f,0,rgb(0xffffdf37));
+            draw(rounded,x+.35f,.85f,z+.2f,.9f,.30f,.40f,0,rgb(0xffffdf37));
+        }
         float road=sceneZ(g,g.level.height+1.8f);
-        draw(cube,0,.02f,road,g.level.width+3,.08f,3.3f,0,rgb(0xff8c8c86));
-        for(int i=0;i<9;i++)draw(cube,(i-4)*g.level.width/9f,.07f,road+.95f,1.3f,.04f,.11f,0,cream);
         // Low decorations stay beyond the board frame; tall crane arms live in the home scene.
-        for(int i=0;i<4;i++)cone((i%2==0?-1:1)*(cx+border/2+1.8f),cz*.65f-i*cz*.35f,.65f*scale);
         float truckX=0, spacing=6.2f*scale;
         if(g.truckState==1)truckX+=(float)Math.pow(g.truckClock/1.4,2)*(g.level.width+10);
         if(g.truckState==2)truckX-=spacing*(1-(float)g.truckClock/1.4);
         int visible=g.visibleTrucks();if(visible>0)truck(truckX,road,1.45f*scale,g.truckState==0?0:(float)g.truckClock*7,g.cargoColors);
         for(int i=1;i<visible;i++){float advance=g.truckState==2?(float)g.truckClock/1.4f:0;truck((-i-(g.truckState==2?1:0)+advance)*spacing,road,1.3f*scale,advance*7,Collections.emptyList());}
         for(NativeGame.Bot bot:g.bots){
-            float size=(bot.kind==1?1.9f:1.6f)*scale;
+            float size=(bot.kind==1?2.25f:1.95f)*scale;
             float motion=bot.phase==0?bot.distance/scale:0;
             float lift=bot.phase==1?(float)Math.sin(Math.min(1,bot.phaseTime/.22)*Math.PI):0;
             float boarding=bot.phase==3?Math.min(1,(float)(bot.phaseTime/.30)):0;
@@ -182,6 +198,14 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         }
         if(g.status==NativeGame.WON){robot(-3*scale,road,1.6f*scale,rgb(NativeGame.COLORS[3]),0,0,(float)clock*2,false);robot(3*scale,road,1.9f*scale,rgb(NativeGame.COLORS[2]),1,0,(float)clock,false);}
         int shown=0;for(NativeGame.Block block:g.blocks)if(block.removed&&g.time-block.removedAt<.3&&shown++<12){float age=(float)(g.time-block.removedAt);draw(cube,block.x-cx,.5f+age*2,block.y-cz,.20f,.20f,.20f,age*120,rgb(NativeGame.COLORS[block.color]));}
+    }
+    private void counter(int value,float x,float y,float z,float size){
+        String digits=Integer.toString(value);int[] masks={63,6,91,79,102,109,125,7,127,111};
+        for(int i=0;i<digits.length();i++){
+            int mask=masks[digits.charAt(i)-'0'];float px=x+(i-(digits.length()-1)/2f)*size*1.05f;
+            float[][] segments={{0,-.8f,.65f,.15f},{.4f,-.4f,.15f,.65f},{.4f,.4f,.15f,.65f},{0,.8f,.65f,.15f},{-.4f,.4f,.15f,.65f},{-.4f,-.4f,.15f,.65f},{0,0,.65f,.15f}};
+            for(int n=0;n<7;n++)if((mask&(1<<n))!=0){float[] s=segments[n];draw(rounded,px+s[0]*size,y,z+s[1]*size,s[2]*size,.10f,s[3]*size,0,cream);}
+        }
     }
     private float sceneZ(NativeGame g,float y){float road=g.level.height+1.8f-(g.level.height-1)/2f+4.8f*g.level.width/32f;if(y>g.level.height+1.8f)return road+(portalZ-road)*Math.min(1,(y-g.level.height-1.8f)/2.6f);return y-(g.level.height-1)/2f+Math.max(0,Math.min(1,(y-g.level.height)/1.8f))*4.8f*g.level.width/32f;}
     private void cone(float x,float z,float scale){draw(rounded,x,.08f,z,scale,.16f,scale,0,ink);draw(rounded,x,.38f*scale,z,.45f*scale,.70f*scale,.45f*scale,0,rgb(0xffff9c43));draw(rounded,x,.42f*scale,z,.47f*scale,.12f*scale,.47f*scale,0,cream);}
@@ -220,7 +244,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
                 float stride=(float)Math.sin(distance*6+ (side==1?Math.PI:0))*.13f;
                 part(x,z,size,angle,side*.19f,.15f,stride,.24f,.23f,.35f,cream,rounded);
                 boolean wave=preview||game!=null&&game.status==NativeGame.WON;
-                part(x,z,size,angle,side*(wave?.50f:.39f),wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,carrying?.32f:-stride,.19f,.27f,.23f,cream,rounded);
+                part(x,z,size,angle,side*(wave?.50f:.39f),preview?1.70f:wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,preview?-.08f:carrying?.32f:-stride,.19f,.27f,.23f,cream,rounded);
                 part(x,z,size,angle,side*.52f,1+bob,0,.12f,.25f,.3f,cream,sphere);
             }
             if(carrying)part(x,z,size,angle,0,.56f+bob,.42f,.42f,.38f,.36f,color,rounded);
@@ -244,10 +268,9 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         draw(sphere,0,-.04f,0,8.15f,.22f,5.15f,0,rgb(0xffe6f5b8));
         for(int i=0;i<3;i++)draw(sphere,2.7f+(i-1)*.42f,3.4f+(i==1?.18f:0),-2.8f,.95f,.60f,.30f,0,cream);
         draw(sphere,-3.25f,3.4f,-2.8f,.95f,.95f,.25f,0,rgb(0xffffcb68));
-        crane(3.15f,-2.0f,2.5f);
-        for(int i=0;i<5;i++)draw(rounded,(i-2)*.68f,.28f,-1.9f,.58f,.48f,.55f,(i-2)*8,rgb(NativeGame.COLORS[i]));
-        robot(-.90f+(float)Math.sin(clock*.65)*.08f,.24f,2.60f,rgb(NativeGame.COLORS[3]),0,-8+(float)Math.sin(clock*.5)*4,(float)clock*.30f,true);
-        robot(2.10f,-.48f,1.72f,rgb(NativeGame.COLORS[2]),1,-12,(float)clock*.35f,true);
+        draw(rounded,0,5.4f,-.2f,3.8f,2.7f,.25f,0,rgb(0xff9340e6));
+        draw(rounded,0,5.4f,-.04f,3.55f,2.45f,.08f,0,rgb(0xffb765f1));
+        robot(0,.55f,3.05f,rgb(NativeGame.COLORS[2]),0,0,(float)clock*.15f,false);
         draw(rounded,0,.01f,2.0f,7.3f,.06f,1.05f,0,rgb(0xffa9d1bd));
         for(int i=0;i<5;i++)draw(rounded,(i-2)*1.6f,.065f,2.0f,.70f,.02f,.07f,0,cream);
         truck((float)(clock%12)/12*11-5.5f,2.12f,.48f,(float)clock,Arrays.asList(0,1,2,3));

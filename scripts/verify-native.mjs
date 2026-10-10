@@ -10,6 +10,8 @@ for (let id = 1; id <= 500; id++) {
   lines.push(`L ${id} ${level.board.width} ${level.board.height} ${level.difficulty||0} ${level.autoFinish?1:0}`);
   for (const b of level.blocks) lines.push(`B ${b.x} ${b.y} ${colors.indexOf(b.color)}`);
   for (const c of level.containers) lines.push(`C ${c.id} ${colors.indexOf(c.color)} ${c.robotCount} ${c.depth} ${c.lane} ${(c.blockedBy || []).join(',') || '-'} ${c.group||0}`);
+  for(const k of level.keys||[])lines.push(`K ${k.id} ${k.x} ${k.y} ${colors.indexOf(k.lockColor)}`);
+  for(const s of level.seals||[])lines.push(`S ${s.x} ${s.y} ${s.width} ${s.height} ${colors.indexOf(s.color)} ${s.count}`);
   for (const c of planQueue(level).containers) lines.push(`Q ${c.id} ${colors.indexOf(c.color)} ${c.robotCount} ${c.depth} ${c.lane} ${(c.blockedBy || []).join(',') || '-'} ${c.group||0}`);
 }
 await writeFile('.build/native-tests/levels.txt', lines.join('\n'));
