@@ -63,36 +63,53 @@ public final class MainActivity extends Activity {
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
         game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
-        content.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffa6e6ee,0xffc9efeb,0xffc5eca6}));
-        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(100)));
+        Typeface round=ColonyStyle.load(this);
+        content.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{ColonyStyle.HOME_SKY_TOP,ColonyStyle.HOME_SKY_MID,ColonyStyle.HOME_SKY_BOT}));
+        // Colony-style top: profile · coins · settings (no hearts).
+        LinearLayout top=new LinearLayout(this);top.setOrientation(LinearLayout.HORIZONTAL);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(14),dp(10),dp(14),dp(6));
+        View profile=new View(this);GradientDrawable profileBg=background(0xff4aa8e8,28);profile.setBackground(profileBg);profile.setContentDescription("프로필");LinearLayout.LayoutParams profileLp=new LinearLayout.LayoutParams(dp(52),dp(52));top.addView(profile,profileLp);
+        TextView coins=text("◈ "+save.coins,18,Color.WHITE,true);coins.setTypeface(round);coins.setBackground(background(ColonyStyle.COIN_PILL,20));coins.setPadding(dp(16),dp(8),dp(16),dp(8));LinearLayout.LayoutParams coinLp=new LinearLayout.LayoutParams(-2,-2);coinLp.leftMargin=dp(10);top.addView(coins,coinLp);
+        View spacer=new View(this);top.addView(spacer,new LinearLayout.LayoutParams(0,1,1));
+        GameIcons settings=new GameIcons(this,10,"설정",()->{effect("click");showSettings();});settings.homeStyle();top.addView(settings,new LinearLayout.LayoutParams(dp(52),dp(52)));
+        content.addView(top,new LinearLayout.LayoutParams(-1,-2));
         try{
             FrameLayout hero=new FrameLayout(this);
             scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);
             hero.addView(scene,new FrameLayout.LayoutParams(-1,-1));
             boolean compactHome=getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density<700;
-            TextView stage=text("LEVEL\n"+save.current,compactHome?34:42,0xffffffff,true);
+            TextView stage=text("LEVEL\n"+save.current,compactHome?34:42,0xffffffff,true);stage.setTypeface(round);
             android.text.SpannableString stageLabel=new android.text.SpannableString("LEVEL\n"+save.current);stageLabel.setSpan(new android.text.style.RelativeSizeSpan(.45f),0,5,0);stage.setText(stageLabel);
-            stage.setShadowLayer(dp(1),0,dp(2),0xff653299);
+            stage.setShadowLayer(dp(2),0,dp(3),0xff4a2080);
             FrameLayout.LayoutParams badge=new FrameLayout.LayoutParams(1,1,Gravity.TOP|Gravity.LEFT);hero.addView(stage,badge);
-            hero.addOnLayoutChangeListener((v,left,top,right,bottom,oldLeft,oldTop,oldRight,oldBottom)->{
-                if(right-left==oldRight-oldLeft&&bottom-top==oldBottom-oldTop)return;
-                float[] bounds=NativeScene.levelBadgeBounds(right-left,bottom-top);FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)stage.getLayoutParams();
+            hero.addOnLayoutChangeListener((v,left,topEdge,right,bottomEdge,oldLeft,oldTop,oldRight,oldBottom)->{
+                if(right-left==oldRight-oldLeft&&bottomEdge-topEdge==oldBottom-oldTop)return;
+                float[] bounds=NativeScene.levelBadgeBounds(right-left,bottomEdge-topEdge);FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)stage.getLayoutParams();
                 lp.leftMargin=Math.round(bounds[0]);lp.topMargin=Math.round(bounds[1]);lp.width=Math.round(bounds[2]);lp.height=Math.round(bounds[3]);stage.setLayoutParams(lp);
                 stage.setTextSize(Math.min(42,bounds[3]/getResources().getDisplayMetrics().density*.46f));
             });
             content.addView(hero,new LinearLayout.LayoutParams(-1,0,1));
         }catch(Exception error){toast(error.getMessage());}
-        LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(24),dp(4),dp(24),dp(12));
+        LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(20),dp(0),dp(20),dp(0));
         int difficulty=save.current%10==0?2:save.current%5==0?1:0;
-        TextView badge=text(new String[]{"Normal","Hard","Super Hard"}[difficulty],16,Color.WHITE,true);badge.setBackground(background(new int[]{0xff3677e7,0xff9644db,0xffef365c}[difficulty],14));
-        LinearLayout.LayoutParams difficultyBadge=new LinearLayout.LayoutParams(dp(difficulty==2?142:112),dp(30));difficultyBadge.gravity=Gravity.CENTER;bottom.addView(badge,difficultyBadge);
-        Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xffffffff);play.setShadowLayer(dp(2),0,dp(2),0xff39784a);
-        GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffb5ed67,0xff63c33c});face.setCornerRadius(dp(32));face.setStroke(dp(4),0xfffff7dc);
-        GradientDrawable base=background(0xff3f873c,32);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,10);
-        Button daily=button(save.dailyAvailable()?"일일 보상 받기 · ◈ 50":"일일 보상 · 내일 다시",save.dailyAvailable(),this::claimDailyReward);daily.setEnabled(save.dailyAvailable());daily.setAlpha(save.dailyAvailable()?1f:.55f);bottom.addView(daily,new LinearLayout.LayoutParams(-1,dp(48)));gap(bottom,14);
-        LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};int[] navIcons={9,11,0,10};
-        for(int i=0;i<4;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});icon.homeStyle();column.addView(icon,new LinearLayout.LayoutParams(-1,dp(62)));gap(column,7);column.addView(text(labels[i],11,0xff4f7163,true));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=dp(12);links.addView(column,lp);}
-        bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(280)));
+        TextView badge=text(new String[]{"Normal","Hard","Super Hard"}[difficulty],15,Color.WHITE,true);badge.setTypeface(round);
+        badge.setBackground(background(new int[]{0xff3677e7,0xff9644db,0xffef365c}[difficulty],12));
+        LinearLayout.LayoutParams difficultyBadge=new LinearLayout.LayoutParams(dp(difficulty==2?130:100),dp(28));difficultyBadge.gravity=Gravity.CENTER;difficultyBadge.bottomMargin=dp(-10);bottom.addView(badge,difficultyBadge);
+        Button play=button("Play",true,()->startLevel(save.current));play.setTypeface(round);play.setTextSize(32);play.setTextColor(0xffffffff);play.setShadowLayer(dp(2),0,dp(2),0xff2a7a30);
+        GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xff7ae85a,ColonyStyle.PLAY_GREEN});face.setCornerRadius(dp(28));face.setStroke(dp(5),ColonyStyle.PLAY_EDGE);
+        GradientDrawable base=background(0xff2f9a3a,28);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(6));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(6));
+        LinearLayout.LayoutParams playLp=new LinearLayout.LayoutParams(-1,dp(72));playLp.setMargins(dp(8),dp(4),dp(8),dp(10));bottom.addView(play,playLp);
+        // Colony-style bottom nav bar (no shop ads / hearts).
+        LinearLayout nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);nav.setGravity(Gravity.CENTER);nav.setBackground(background(ColonyStyle.NAV_BAR,22));nav.setPadding(dp(8),dp(10),dp(8),dp(10));
+        String[] labels={"스테이지","일일","홈","아이템","설정"};int[] navIcons={9,0,8,0,10};
+        for(int i=0;i<5;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);
+            boolean homeTab=n==2;GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)claimDailyReward();else if(n==2)showHome();else if(n==3)showItems();else showSettings();});
+            icon.homeStyle();if(homeTab)icon.setBackground(background(0xff4a6ad8,18));
+            column.addView(icon,new LinearLayout.LayoutParams(dp(homeTab?58:48),dp(homeTab?58:48)));
+            TextView label=text(labels[i],10,homeTab?0xffffd76a:0xffc8d0f0,true);label.setTypeface(round);column.addView(label);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);nav.addView(column,lp);
+        }
+        bottom.addView(nav,new LinearLayout.LayoutParams(-1,dp(92)));
+        content.addView(bottom,new LinearLayout.LayoutParams(-1,-2));
     }
     private void claimDailyReward(){
         int gained=save.claimDaily();

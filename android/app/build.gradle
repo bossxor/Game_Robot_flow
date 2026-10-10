@@ -11,8 +11,8 @@ android {
         applicationId 'com.bossxor.roborelay'
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '0.1.0'
+        versionCode 2
+        versionName '0.1.1'
     }
     signingConfigs {
         roboRelay {
@@ -42,6 +42,7 @@ android {
 // The native renderer consumes only level data. No web runtime is packaged.
 def syncGameAssets = tasks.register('syncGameAssets', Sync) {
     from('../../public/construction-levels') { into 'levels' }
+    from('../../fonts') { into 'fonts' }
     into 'src/main/assets'
 }
 tasks.named('preBuild').configure { dependsOn syncGameAssets }

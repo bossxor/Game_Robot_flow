@@ -2,7 +2,9 @@
 
 색 맞는 로봇을 보내 보드 블록을 회수하고 트럭에 싣는 **Android 네이티브 3D 퍼즐**입니다.
 
-최신 설치: [Robo Relay v0.1.0 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.1.0) · 로컬 `releases/RoboRelay-v0.1.0-native-3d-debug.apk`
+최신 설치: [Robo Relay v0.1.1 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.1.1) · 로컬 `releases/RoboRelay-v0.1.1-native-3d-debug.apk`
+
+v0.1.1: Colony Flow식 홈/게임 크롬(둥근 볼드 폰트·핑크 일시정지·금색 배속·흰 슬롯·라벤더 아이템 트레이), 로봇·트럭 유지.
 
 - 앱 이름: **Robo Relay**
 - 패키지 ID: `com.bossxor.roborelay` (Colony Flow·이전 robotflow 앱과 별개)
@@ -32,7 +34,7 @@ Android 8.0(API 26)+ / OpenGL ES 2.0. 오프라인 500레벨.
 
 ```powershell
 adb uninstall com.bossxor.robotflow
-adb install --user 0 -r releases/RoboRelay-v0.1.0-native-3d-debug.apk
+adb install --user 0 -r releases/RoboRelay-v0.1.1-native-3d-debug.apk
 adb shell am start -n com.bossxor.roborelay/com.bossxor.robotflow.MainActivity
 ```
 

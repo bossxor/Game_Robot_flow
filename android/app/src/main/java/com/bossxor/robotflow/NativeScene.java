@@ -82,7 +82,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     @Override public void onSurfaceChanged(GL10 gl, int width, int height) { this.width = width; this.height = Math.max(height, 1); GLES20.glViewport(0, 0, width, height); }
     @Override public void onDrawFrame(GL10 gl) {
         long frameStart=SystemClock.elapsedRealtimeNanos();long now = frameStart; double dt = Math.max(0, Math.min(.04, (now - previous) / 1e9)); previous = now;
-        float[] sky=preview?rgb(0xffc9efeb):rgb(new int[]{0xffeee4cd,0xffdcc9e8,0xffccdfe9}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        float[] sky=preview?rgb(0xff8fd4f0):rgb(0xff9a90b8);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glUseProgram(program); GLES20.glUniform1f(glossUniform,preview?.30f:.03f); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
         NativeGame g = game; if (g == null || width == 0) return;
         synchronized (g) {

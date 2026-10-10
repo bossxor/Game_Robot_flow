@@ -26,6 +26,7 @@ public final class NativeHud extends View {
     private float downY;
     private int accessibilityFocus = -1;
     private boolean animating;
+    private Typeface roundBold;
 
     private static class Target {
         final RectF rect; final String key; final int id;
@@ -50,12 +51,13 @@ public final class NativeHud extends View {
     public NativeHud(Context context, NativeGame game, PlayerSave save, boolean header, Actions actions) {
         super(context); this.game = game; this.save = save; this.header = header; this.actions = actions;
         density = getResources().getDisplayMetrics().density;
+        roundBold = ColonyStyle.load(context);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
         setContentDescription(header ? "스테이지, 일시정지, 배속" : "컨테이너 대기열과 네 가지 아이템");
     }
     private void label(Canvas canvas, String text, float x, float y, float size, int color) {
         paint.setShader(null); paint.setStyle(Paint.Style.FILL); paint.setColor(color);
-        paint.setTextSize(size); paint.setTypeface(Typeface.DEFAULT_BOLD); paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(size); paint.setTypeface(roundBold != null ? roundBold : Typeface.DEFAULT_BOLD); paint.setTextAlign(Paint.Align.CENTER);
         canvas.drawText(text, x, y, paint);
     }
     private void box(Canvas canvas, float x, float y, float w, float h, int color, float radius) {
@@ -68,24 +70,20 @@ public final class NativeHud extends View {
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas); canvas.save(); canvas.scale(density, density);
         float width = getWidth() / density, height = getHeight() / density;
-        canvas.drawColor(new int[]{0xffeee4cd,0xffdcc9e8,0xffccdfe9}[game.level.theme]); targets.clear(); animating = false;
+        canvas.drawColor(header ? ColonyStyle.GAME_BG : ColonyStyle.GAME_BG); targets.clear(); animating = false;
         synchronized (game) { if (header) drawHeader(canvas, width); else drawControls(canvas, width, height); }
         canvas.restore();
         if (animating && !game.paused) postInvalidateOnAnimation();
     }
     private void drawHeader(Canvas c, float width) {
-        box(c, 13, 26, 38, 38, 0xffd4b895, 12);
-        box(c, 13, 23, 38, 38, CREAM, 12);
-        GameIcons.draw(c, paint, 5, 32, 42, 27); hit(8, 18, 48, 48, "pause", 0);
-        label(c, "Level " + game.level.id, width / 2, 43, 23, INK);
-        box(c, width - 86, 26, 72, 38, 0xffbe945e, 12);
-        box(c, width - 86, 23, 72, 38, 0xffffca76, 12);
-        label(c, "▶ " + (game.finishing?NativeGame.FINISH_SPEED:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
-        float badgeWidth=game.level.difficulty==2?110:78;
-        int badgeColor=new int[]{0xff3677e7,0xff9644db,0xffef365c}[game.level.difficulty];
-        box(c,width/2-badgeWidth/2,49,badgeWidth,22,shade(badgeColor,.65f),9);
-        box(c,width/2-badgeWidth/2,47,badgeWidth,22,badgeColor,9);
-        label(c,new String[]{"Normal","Hard","Super Hard"}[game.level.difficulty],width/2,63,12,Color.WHITE);
+        // Colony: pink pause · Level center · gold speed.
+        paint.setColor(0x33000000); c.drawCircle(32, 44, 22, paint);
+        paint.setColor(ColonyStyle.PAUSE_PINK); c.drawCircle(32, 42, 20, paint);
+        GameIcons.draw(c, paint, 5, 32, 42, 22); hit(8, 18, 48, 48, "pause", 0);
+        label(c, "Level " + game.level.id, width / 2, 48, 26, ColonyStyle.LEVEL_INK);
+        box(c, width - 92, 28, 78, 36, 0xffc49a28, 14);
+        box(c, width - 92, 24, 78, 36, ColonyStyle.SPEED_GOLD, 14);
+        label(c, ">> " + (game.finishing?NativeGame.FINISH_SPEED:speed) + "x", width - 53, 49, 16, ColonyStyle.SPEED_INK); hit(width - 96, 16, 88, 52, "speed", 0);
     }
     private static final int MUTED_COLOR=0xff93806b;
     private static final int[] CARD_COLORS=NativeGame.COLORS;
@@ -93,11 +91,11 @@ public final class NativeHud extends View {
         return Color.rgb(Math.min(255, (int)(Color.red(color) * factor)), Math.min(255, (int)(Color.green(color) * factor)), Math.min(255, (int)(Color.blue(color) * factor)));
     }
     private void number(Canvas c, String value, float x, float y, float width, boolean bright) {
-        paint.setShader(null); paint.setTypeface(Typeface.create("sans-serif-condensed",Typeface.BOLD)); paint.setTextAlign(Paint.Align.CENTER);
+        paint.setShader(null); paint.setTypeface(roundBold != null ? roundBold : Typeface.create("sans-serif-black", Typeface.BOLD)); paint.setTextAlign(Paint.Align.CENTER);
         float size = 28; paint.setTextSize(size);
         while (paint.measureText(value) > width - 6 && size > 15) paint.setTextSize(--size);
-        paint.setStyle(Paint.Style.STROKE); paint.setStrokeJoin(Paint.Join.ROUND); paint.setStrokeWidth(3.5f);
-        paint.setColor(0xff263344); c.drawText(value, x, y, paint);
+        paint.setStyle(Paint.Style.STROKE); paint.setStrokeJoin(Paint.Join.ROUND); paint.setStrokeWidth(5f);
+        paint.setColor(0xff1a1a28); c.drawText(value, x, y, paint);
         paint.setStyle(Paint.Style.FILL); paint.setColor(bright ? Color.WHITE : 0xffeeeefa); c.drawText(value, x, y, paint);
     }
     private void card(Canvas c, NativeGame.Capsule capsule, float x, float y, boolean active, boolean front, boolean touched) {
@@ -249,7 +247,9 @@ public final class NativeHud extends View {
         // Draw flying containers after the queue so their move into the work area is readable.
         for (int slot = 0; slot < game.slots.size(); slot++) {
             float slotX=GameLayout.columnX(slot,game.slots.size());
-            box(c,slotX-1,GameLayout.ACTIVE_Y+4,50,54,0xffc8b294,11);box(c,slotX,GameLayout.ACTIVE_Y,48,48,0xfffff3df,10);
+            // Colony white pads always visible.
+            box(c,slotX-1,GameLayout.ACTIVE_Y+5,50,52,0x33000000,12);
+            box(c,slotX,GameLayout.ACTIVE_Y,48,48,ColonyStyle.SLOT_WHITE,12);
             NativeGame.Capsule a = game.slots.get(slot); if (a == null) continue;
             Motion m = launch(a, GameLayout.columnX(slot, game.slots.size()), now);
             if(!m.rocket||m.progress>=1){card(c, a, m.x, m.y, true, true, false);activeLinks.add(new LinkNode(a,m.x,m.y));}
@@ -263,14 +263,16 @@ public final class NativeHud extends View {
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
         if (clearMode) label(c,"색 선택 · 드래그로 이동",192,65,9,INK);
         float tray = GameLayout.trayTop(logicalHeight);
-        box(c, 0, tray + 2, 384, 110, 0xffb98b55, 24);
-        box(c, 2, tray, 380, 110, 0xffe1c49b, 24);
-        box(c, 5, tray + 4, 374, 106, 0xffecd6b3, 21);
+        // Colony lavender checker tray.
+        for(int row=0;row<4;row++)for(int col=0;col<12;col++){
+            paint.setColor(((row+col)&1)==0?ColonyStyle.TRAY_CHECKER_A:ColonyStyle.TRAY_CHECKER_B);
+            c.drawRect(col*32f,tray+row*28f,(col+1)*32f,tray+(row+1)*28f,paint);
+        }
         for (int i = 0; i < 4; i++) {
-            float x = 61 + i * 87, y = tray + 18;
-            paint.setColor(0x22000000); c.drawCircle(x, y + 4, 29, paint);
-            paint.setColor(0xffbe9465); c.drawCircle(x, y + 2, 29, paint);
-            paint.setColor((pullMode && i == 3)||(clearMode&&i==1) ? 0xffffca76 : CREAM); c.drawCircle(x, y, 28, paint);
+            float x = 61 + i * 87, y = tray + 22;
+            paint.setColor(0x33000000); c.drawCircle(x, y + 4, 30, paint);
+            paint.setColor(0xffffffff); c.drawCircle(x, y, 28, paint);
+            paint.setColor((pullMode && i == 3)||(clearMode&&i==1) ? ColonyStyle.SPEED_GOLD : 0xfff4eefc); c.drawCircle(x, y, 26, paint);
             GameIcons.draw(c, paint, i, x, y - 1, 42);
             paint.setColor(0xff6e9468); c.drawCircle(x + 20, y + 22, 12, paint);
             paint.setColor(0xffa7d883); c.drawCircle(x + 20, y + 20, 11, paint);
