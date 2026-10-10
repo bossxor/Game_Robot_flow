@@ -133,6 +133,15 @@ public final class NativeHud extends View {
         }
         m.goalX=x;m.advance(now);return m;
     }
+    public void captureLaunches() {
+        synchronized(game){
+            long now=SystemClock.elapsedRealtime();
+            for(int slot=0;slot<game.slots.size();slot++){
+                NativeGame.Capsule cargo=game.slots.get(slot);
+                if(cargo!=null)launch(cargo,GameLayout.columnX(slot,game.slots.size()),now);
+            }
+        }
+    }
     private void rocket(Canvas c,Motion m,long now) {
         float p=m.progress,size=GameLayout.CARD;
         if(p>=1)return;
