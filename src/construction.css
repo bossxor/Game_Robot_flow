@@ -33,3 +33,13 @@
 .card.linked:after{background:#fff7d2;box-shadow:0 2px #bfa079}
 .card[data-digits="3"]{font-size:clamp(18px,5.5vw,25px)}
 @media(prefers-reduced-motion:reduce){.controls{transition:none}}
+
+
+/* Transfer overlay survives active-number updates and cannot intercept queue taps. */
+.container-flight-layer{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:visible}
+.flight-hidden{visibility:hidden}
+.container-rocket{position:absolute;margin:0;pointer-events:none;transform-origin:50% 50%;will-change:transform}
+.container-rocket:after{content:"";position:absolute;width:34%;height:25px;left:33%;top:calc(100% + 7px);border-radius:15% 15% 55% 55%;background:radial-gradient(ellipse at 50% 0,#fffbd0 0 30%,#ffd35d 35% 58%,#ff8844 62%);box-shadow:0 -4px #657b98;clip-path:polygon(0 0,100% 0,88% 55%,50% 100%,12% 55%);animation:rocket-flame .09s alternate infinite,rocket-cutoff .42s linear forwards}
+@keyframes rocket-flame{to{scale:.85 1.18}}
+@keyframes rocket-cutoff{0%,80%{opacity:1}82%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.container-flight-layer{display:none}}

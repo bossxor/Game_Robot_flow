@@ -7,8 +7,8 @@ android {
         applicationId 'com.bossxor.robotflow'
         minSdk 26
         targetSdk 36
-        versionCode 13
-        versionName '0.9.0'
+        versionCode 14
+        versionName '0.9.1'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

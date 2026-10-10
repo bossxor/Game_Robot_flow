@@ -34,7 +34,17 @@ public final class NativeHud extends View {
     private static class Motion {
         float x, y, fromX, fromY, goalX, goalY;
         long began;
+        boolean rocket;
+        float progress;
+        NativeGame.Capsule cargo;
         Motion(float x, float y) { this.x = this.fromX = this.goalX = x; this.y = this.fromY = this.goalY = y; }
+        void advance(long now) {
+            progress = Math.min(1, (now - began) / (rocket ? 420f : 280f));
+            float t = rocket ? Math.max(0, Math.min(1, (progress - .08f) / .74f)) : progress;
+            float ease = rocket ? t*t*(3-2*t) : 1-(float)Math.pow(1-t,3);
+            x=fromX+(goalX-fromX)*ease; y=fromY+(goalY-fromY)*ease;
+            if(rocket)y-=(float)Math.sin(Math.PI*t)*14;
+        }
     }
     public NativeHud(Context context, NativeGame game, PlayerSave save, boolean header, Actions actions) {
         super(context); this.game = game; this.save = save; this.header = header; this.actions = actions;
@@ -107,11 +117,39 @@ public final class NativeHud extends View {
     private Motion position(int id, float x, float y, long now) {
         Motion m = motions.get(id);
         if (m == null) { m = new Motion(x, y); motions.put(id, m); }
-        if (m.goalX != x || m.goalY != y) { m.fromX = m.x; m.fromY = m.y; m.goalX = x; m.goalY = y; m.began = now; }
-        float t = Math.min(1, (now - m.began) / 280f), ease = 1 - (float)Math.pow(1 - t, 3);
-        m.x = m.fromX + (m.goalX - m.fromX) * ease; m.y = m.fromY + (m.goalY - m.fromY) * ease;
-        if (t < 1) animating = true;
+        if (m.goalX != x || m.goalY != y) { m.fromX = m.x; m.fromY = m.y; m.goalX = x; m.goalY = y; m.began = now; m.rocket=false; }
+        m.advance(now);
+        if (m.progress < 1) animating = true;
         return m;
+    }
+    private Motion launch(NativeGame.Capsule capsule,float x,long now) {
+        Motion m=motions.get(capsule.id);
+        if(m==null){m=new Motion(GameLayout.columnX(capsule.lane,4),GameLayout.QUEUE_Y);motions.put(capsule.id,m);}
+        if(m.goalY!=GameLayout.ACTIVE_Y){
+            m.fromX=m.x;m.fromY=m.y;m.goalX=x;m.goalY=GameLayout.ACTIVE_Y;m.began=now;
+            m.rocket=android.animation.ValueAnimator.areAnimatorsEnabled();
+            m.cargo=new NativeGame.Capsule(capsule.id,capsule.color,Math.max(0,capsule.count-capsule.loaded),capsule.depth);
+            if(!m.rocket){m.fromX=x;m.fromY=GameLayout.ACTIVE_Y;}
+        }
+        m.goalX=x;m.advance(now);return m;
+    }
+    private void rocket(Canvas c,Motion m,long now) {
+        float p=m.progress,size=GameLayout.CARD;
+        if(p>=1)return;
+        animating=true;c.save();c.translate(m.x+size/2,m.y+size/2);
+        float travel=(float)Math.sin(Math.PI*Math.min(1,p/.82f));
+        c.rotate(Math.signum(m.goalX-m.fromX)*10*travel);
+        float squash=p<.08f?1-.06f*p/.08f:p>.82f?1-.06f*(float)Math.sin((p-.82f)/.18f*Math.PI):1;
+        c.scale(1+(1-squash)*.5f,squash);c.translate(-size/2,-size/2);
+        if(p<.82f){
+            float flame=15+8*(float)Math.sin(now*.09),base=size+9;
+            box(c,size/2-8,size+4,16,8,0xff657b98,4);
+            Path plume=new Path();plume.moveTo(size/2-8,base);plume.quadTo(size/2-12,base+flame*.55f,size/2,base+flame);plume.quadTo(size/2+12,base+flame*.55f,size/2+8,base);plume.close();
+            paint.setColor(0xffff9748);c.drawPath(plume,paint);
+            plume.reset();plume.moveTo(size/2-4,base);plume.lineTo(size/2,base+flame*.72f);plume.lineTo(size/2+4,base);plume.close();paint.setColor(0xfffff1a6);c.drawPath(plume,paint);
+            box(c,-4,size-10,8,19,0xffd2eef8,4);box(c,size-4,size-10,8,19,0xffd2eef8,4);
+        }
+        card(c,m.cargo,0,0,true,true,false);c.restore();
     }
     private boolean touched(String key, int id) { return pressed != null && pressed.key.equals(key) && pressed.id == id; }
     private void drawControls(Canvas c, float width, float height) {
@@ -143,9 +181,11 @@ public final class NativeHud extends View {
             float slotX=GameLayout.columnX(slot,game.slots.size());
             box(c,slotX-1,GameLayout.ACTIVE_Y+4,50,54,0xffc8b294,11);box(c,slotX,GameLayout.ACTIVE_Y,48,48,0xfffff3df,10);
             NativeGame.Capsule a = game.slots.get(slot); if (a == null) continue;
-            Motion m = position(a.id, GameLayout.columnX(slot, game.slots.size()), GameLayout.ACTIVE_Y, now);
-            card(c, a, m.x, m.y, true, true, false);
+            Motion m = launch(a, GameLayout.columnX(slot, game.slots.size()), now);
+            if(!m.rocket||m.progress>=1)card(c, a, m.x, m.y, true, true, false);
         }
+        // Keep the flight visible even if 10x simulation retires its cargo before landing.
+        for(Motion m:motions.values())if(m.rocket){m.advance(now);rocket(c,m,now);}
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
         if (clearMode) label(c,"없앨 색의 블록을 터치하세요",192,65,9,INK);
         float tray = GameLayout.trayTop(logicalHeight);
