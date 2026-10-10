@@ -14,7 +14,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     public volatile int speed = 1;
     private static final int BASE_SIMULATION_RATE = 2;
     public volatile boolean preview;
-    private int program, position, normal, mvpUniform, modelUniform, colorUniform, normalUniform, tintAttribute;
+    private int program, position, normal, mvpUniform, modelUniform, colorUniform, normalUniform, tintAttribute, glossUniform;
     private final float[] projection = new float[16], view = new float[16], vp = new float[16], model = new float[16], mvp = new float[16], inverse = new float[16], normalMatrix = new float[16];
     private Mesh rounded, sphere, cube, tileMesh;
     private final Map<Integer,TileChunk> chunks = new HashMap<>();
@@ -28,7 +28,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     private long perfStarted,perfCost;private int perfFrames;
     private final float[] ink = rgb(0xff353b43), cream = rgb(0xfffff2d8), lime = rgb(0xff89c5a3);
     private static final String VERTEX = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec4 aTint; varying vec4 vTint; uniform mat4 uMvp; uniform mat4 uModel; uniform mat4 uNormal; varying vec3 vNormal; varying vec3 vWorld; void main(){ vTint=aTint; vec4 p=uModel*vec4(aPosition,1.0); vWorld=p.xyz; vNormal=normalize(mat3(uNormal)*aNormal); gl_Position=uMvp*vec4(aPosition,1.0); }";
-    private static final String FRAGMENT = "precision mediump float; varying vec3 vNormal; varying vec3 vWorld; uniform vec4 uColor; varying vec4 vTint; void main(){ vec3 n=normalize(vNormal); vec3 l=normalize(vec3(-0.5,1.0,0.75)); float diffuse=max(dot(n,l),0.0); float rim=pow(1.0-max(n.y,0.0),2.0)*0.055; vec3 color=uColor.rgb*vTint.rgb*(0.60+0.40*diffuse)+rim; gl_FragColor=vec4(color,uColor.a); }";
+    private static final String FRAGMENT = "precision mediump float; varying vec3 vNormal; varying vec3 vWorld; uniform vec4 uColor; uniform float uGloss; varying vec4 vTint; void main(){ vec3 n=normalize(vNormal); vec3 l=normalize(vec3(-0.5,1.0,0.75)); float diffuse=max(dot(n,l),0.0); float rim=pow(1.0-max(n.y,0.0),2.0)*0.055; vec3 color=uColor.rgb*vTint.rgb*(0.60+0.40*diffuse)+rim; float shine=pow(max(dot(reflect(-l,n),normalize(vec3(0.0,0.65,1.0))),0.0),28.0)*uGloss; gl_FragColor=vec4(color+vec3(shine),uColor.a); }";
     public NativeScene(Context context, NativeGame game, boolean preview) {
         super(context); this.game = game; this.preview = preview;
         setEGLContextClientVersion(2); setEGLConfigChooser(8, 8, 8, 8, 24, 0);
@@ -55,8 +55,8 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         GLES20.glDeleteShader(vertex); GLES20.glDeleteShader(fragment);
         position = GLES20.glGetAttribLocation(program, "aPosition"); normal = GLES20.glGetAttribLocation(program, "aNormal"); tintAttribute=GLES20.glGetAttribLocation(program,"aTint");
         mvpUniform = GLES20.glGetUniformLocation(program, "uMvp"); modelUniform = GLES20.glGetUniformLocation(program, "uModel");
-        colorUniform = GLES20.glGetUniformLocation(program, "uColor"); normalUniform = GLES20.glGetUniformLocation(program, "uNormal");
-        rounded = boxMesh(.20f, 5); cube = boxMesh(0, 1); tileMesh=boxMesh(.05f,2); sphere = sphereMesh(preview?16:10, preview?24:16); chunks.clear();
+        colorUniform = GLES20.glGetUniformLocation(program, "uColor"); normalUniform = GLES20.glGetUniformLocation(program, "uNormal"); glossUniform=GLES20.glGetUniformLocation(program,"uGloss");
+        rounded = boxMesh(preview?.38f:.20f, preview?8:5); cube = boxMesh(0, 1); tileMesh=boxMesh(.05f,2); sphere = sphereMesh(preview?16:10, preview?24:16); chunks.clear();
         GLES20.glEnable(GLES20.GL_DEPTH_TEST); GLES20.glDepthFunc(GLES20.GL_LEQUAL);
         GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
         previous = SystemClock.elapsedRealtimeNanos();
@@ -64,11 +64,11 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     @Override public void onSurfaceChanged(GL10 gl, int width, int height) { this.width = width; this.height = Math.max(height, 1); GLES20.glViewport(0, 0, width, height); }
     @Override public void onDrawFrame(GL10 gl) {
         long frameStart=SystemClock.elapsedRealtimeNanos();long now = frameStart; double dt = Math.max(0, Math.min(.04, (now - previous) / 1e9)); previous = now;
-        float[] sky=preview?rgb(0xfff7eddf):rgb(new int[]{0xfff1dfbd,0xfff3d5c2,0xffc5d1de}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-        GLES20.glUseProgram(program); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
+        float[] sky=preview?rgb(0xffc9efeb):rgb(new int[]{0xfff1dfbd,0xfff3d5c2,0xffc5d1de}[game==null?0:game.level.theme]);GLES20.glClearColor(sky[0],sky[1],sky[2],1); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        GLES20.glUseProgram(program); GLES20.glUniform1f(glossUniform,preview?.30f:.03f); GLES20.glEnableVertexAttribArray(position); GLES20.glEnableVertexAttribArray(normal);
         NativeGame g = game; if (g == null || width == 0) return;
         synchronized (g) {
-            int actualSpeed=g.finishing?5:speed;
+            int actualSpeed=g.finishing?NativeGame.FINISH_SPEED:speed;
             if(preview||!g.paused)clock+=dt*(preview?1:BASE_SIMULATION_RATE*actualSpeed);
             if (preview) { camera(8, 7, true); drawPreview(); }
             else {
@@ -198,7 +198,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
             for(int side:new int[]{-1,1}){
                 float stride=(float)Math.sin(distance*6+ (side==1?Math.PI:0))*.13f;
                 part(x,z,size,angle,side*.19f,.15f,stride,.24f,.23f,.35f,cream,rounded);
-                boolean wave=game!=null&&game.status==NativeGame.WON;
+                boolean wave=preview||game!=null&&game.status==NativeGame.WON;
                 part(x,z,size,angle,side*(wave?.50f:.39f),wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,carrying?.32f:-stride,.19f,.27f,.23f,cream,rounded);
                 part(x,z,size,angle,side*.52f,1+bob,0,.12f,.25f,.3f,cream,sphere);
             }
@@ -206,7 +206,11 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         }
         float faceY=kind==1?.89f:.99f+bob,faceZ=kind==1?.26f:.38f;
         boolean blink=Math.sin(clock*1.7+x)>.995;
-        for(int side:new int[]{-1,1})part(x,z,size,angle,side*.17f,faceY,faceZ,.10f,blink?.025f:.12f,.035f,cream,rounded);
+        for(int side:new int[]{-1,1}){
+            part(x,z,size,angle,side*.17f,faceY,faceZ,preview?.15f:.10f,blink?.025f:preview?.17f:.12f,.035f,cream,preview?sphere:rounded);
+            if(preview&&!blink){part(x,z,size,angle,side*.17f,faceY,faceZ+.02f,.07f,.11f,.025f,ink,sphere);part(x,z,size,angle,side*.17f-.015f,faceY+.025f,faceZ+.035f,.028f,.035f,.02f,cream,sphere);}
+            if(preview)part(x,z,size,angle,side*.29f,faceY-.10f,faceZ,.11f,.06f,.025f,rgb(0xfff7a4a1),sphere);
+        }
         part(x,z,size,angle,0,faceY-.12f,faceZ,.13f,.035f,.035f,cream,rounded);
     }
     private void part(float x,float z,float scale,float angle,float px,float py,float pz,float sx,float sy,float sz,float[] color,Mesh mesh) {
@@ -214,16 +218,16 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         draw(mesh, x + (px*cos+pz*sin)*scale, .21f+py*scale, z + (-px*sin+pz*cos)*scale, sx*scale, sy*scale, sz*scale, angle, color);
     }
     private void drawPreview() {
-        draw(rounded,0,-.65f,0,8.8f,.70f,5.8f,0,rgb(0xff81b9aa));
-        draw(rounded,0,-.25f,0,8.6f,.36f,5.6f,0,rgb(0xffc7e2c4));
-        draw(rounded,0,-.04f,0,8.15f,.12f,5.15f,0,rgb(0xffffebbd));
+        draw(sphere,0,-.60f,0,9.0f,.95f,6.1f,0,rgb(0xff74cba8));
+        draw(sphere,0,-.22f,0,8.6f,.56f,5.8f,0,rgb(0xffb3e68f));
+        draw(sphere,0,-.04f,0,8.15f,.22f,5.15f,0,rgb(0xffe6f5b8));
         for(int i=0;i<3;i++)draw(sphere,2.7f+(i-1)*.42f,3.4f+(i==1?.18f:0),-2.8f,.95f,.60f,.30f,0,cream);
         draw(sphere,-3.25f,3.4f,-2.8f,.95f,.95f,.25f,0,rgb(0xffffcb68));
         crane(3.15f,-2.0f,2.5f);
         for(int i=0;i<5;i++)draw(rounded,(i-2)*.68f,.28f,-1.9f,.58f,.48f,.55f,(i-2)*8,rgb(NativeGame.COLORS[i]));
-        robot(-1.65f+(float)Math.sin(clock*.65)*.08f,.12f,2.05f,rgb(NativeGame.COLORS[3]),0,-8+(float)Math.sin(clock*.5)*4,(float)clock*.30f,true);
-        robot(1.55f,.20f,2.10f,rgb(NativeGame.COLORS[2]),1,-12,(float)clock*.35f,true);
-        draw(rounded,0,.01f,2.0f,8.1f,.06f,1.05f,0,rgb(0xffccbba0));
+        robot(-.90f+(float)Math.sin(clock*.65)*.08f,.24f,2.60f,rgb(NativeGame.COLORS[3]),0,-8+(float)Math.sin(clock*.5)*4,(float)clock*.30f,true);
+        robot(2.10f,-.48f,1.72f,rgb(NativeGame.COLORS[2]),1,-12,(float)clock*.35f,true);
+        draw(rounded,0,.01f,2.0f,7.3f,.06f,1.05f,0,rgb(0xffa9d1bd));
         for(int i=0;i<5;i++)draw(rounded,(i-2)*1.6f,.065f,2.0f,.70f,.02f,.07f,0,cream);
         truck((float)(clock%12)/12*11-5.5f,2.12f,.48f,(float)clock,Arrays.asList(0,1,2,3));
         cone(-3.5f,1.6f,.50f);cone(3.55f,1.6f,.50f);

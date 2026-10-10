@@ -4,6 +4,7 @@ import java.util.*;
 
 /** The Android game's rule engine. No WebView or JavaScript runtime. */
 public final class NativeGame {
+    public static final int FINISH_SPEED = 10;
     public static final int PLAYING = 0, WON = 1, LOST = 2;
     public static final String[] COLOR_KEYS = {"red", "blue", "yellow", "green", "purple", "orange", "pink"};
     public static final String[] COLOR_NAMES = {"코랄", "블루", "옐로", "민트", "퍼플", "오렌지", "핑크"};

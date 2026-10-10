@@ -69,44 +69,46 @@ public final class NativeHud extends View {
         label(c, String.format(Locale.KOREA, "STAGE %03d", game.level.id), width / 2, 53, 25, INK);
         box(c, width - 86, 26, 72, 38, 0xffbe945e, 12);
         box(c, width - 86, 23, 72, 38, 0xffffca76, 12);
-        label(c, "▶ " + (game.finishing?5:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
+        label(c, "▶ " + (game.finishing?NativeGame.FINISH_SPEED:speed) + "×", width - 50, 49, 17, INK); hit(width - 90, 18, 80, 48, "speed", 0);
         label(c,new String[]{"NORMAL","HARD","SUPER HARD"}[game.level.difficulty],width/2,65,8,game.level.difficulty==2?0xffb66a95:game.level.difficulty==1?0xffb56b36:MUTED_COLOR);
         // The builder gauge stays close to the title instead of splitting the container rows.
         box(c, width / 2 - 42, 69, 84, 3, 0xffdac6a6, 2);
         if (game.gauge > 0) box(c, width / 2 - 42, 69, 84f * game.gauge / game.level.megaRequired, 3, 0xffee9d4d, 2);
     }
     private static final int MUTED_COLOR=0xff93806b;
+    private static final int[] CARD_COLORS={0xfff36a5a,0xff379ddf,0xfff5c642,0xff52c77b,0xffa760dd,0xffffa438,0xffee73be};
     private static int shade(int color, float factor) {
         return Color.rgb(Math.min(255, (int)(Color.red(color) * factor)), Math.min(255, (int)(Color.green(color) * factor)), Math.min(255, (int)(Color.blue(color) * factor)));
     }
     private void number(Canvas c, String value, float x, float y, float width, boolean bright) {
         paint.setShader(null); paint.setTypeface(Typeface.DEFAULT_BOLD); paint.setTextAlign(Paint.Align.CENTER);
-        float size = 26; paint.setTextSize(size);
+        float size = 28; paint.setTextSize(size);
         while (paint.measureText(value) > width - 6 && size > 15) paint.setTextSize(--size);
-        paint.setStyle(Paint.Style.STROKE); paint.setStrokeJoin(Paint.Join.ROUND); paint.setStrokeWidth(2.5f);
-        paint.setColor(bright ? INK : 0x99505258); c.drawText(value, x, y, paint);
-        paint.setStyle(Paint.Style.FILL); paint.setColor(bright ? Color.WHITE : 0xffd4cec6); c.drawText(value, x, y, paint);
+        paint.setStyle(Paint.Style.STROKE); paint.setStrokeJoin(Paint.Join.ROUND); paint.setStrokeWidth(3.5f);
+        paint.setColor(0xff263344); c.drawText(value, x, y, paint);
+        paint.setStyle(Paint.Style.FILL); paint.setColor(bright ? Color.WHITE : 0xffeeeefa); c.drawText(value, x, y, paint);
     }
     private void card(Canvas c, NativeGame.Capsule capsule, float x, float y, boolean active, boolean front, boolean touched) {
         float size = GameLayout.CARD;
         c.save(); if (touched) { c.translate(x + size / 2, y + size / 2); c.scale(.96f, .96f); c.translate(-x - size / 2, -y - size / 2); }
-        int color = NativeGame.COLORS[capsule.color];
-        box(c, x - 1, y + 6, size + 2, size + 7, 0x22000000, 11);
-        box(c, x, y + GameLayout.CARD_DEPTH, size, size, shade(color, .64f), 10);
-        box(c, x, y + 5, size, size, shade(color, .83f), 10);
-        paint.setShader(new LinearGradient(x, y, x, y + size, shade(color, 1.12f), shade(color, .95f), Shader.TileMode.CLAMP));
-        paint.setStyle(Paint.Style.FILL); c.drawRoundRect(x, y, x + size, y + size, 10, 10, paint); paint.setShader(null);
-        box(c, x + 5, y + 4, size - 10, 3, 0x55ffffff, 2);
-        if (!front && !active) box(c, x, y, size, size + 7, 0x28000000, 10);
-        if (front && !active) { paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.8f); paint.setColor(CREAM); c.drawRoundRect(x - 1, y - 1, x + size + 1, y + size + 9, 11, 11, paint); paint.setStyle(Paint.Style.FILL); }
-        number(c, String.valueOf(active ? Math.max(0, capsule.count - capsule.loaded) : capsule.remaining), x + size / 2, y + 30, size, active || front);
+        int color = CARD_COLORS[capsule.color];
+        box(c,x-2,y+7,size+4,size+6,0x290b1930,13);
+        box(c,x-1,y+GameLayout.CARD_DEPTH,size+2,size,0xfffffaf1,12);
+        box(c,x+1,y+7,size-2,size,shade(color,.61f),11);
+        paint.setShader(new LinearGradient(x,y,x,y+size,new int[]{shade(color,1.14f),color,shade(color,.88f)},new float[]{0,.45f,1},Shader.TileMode.CLAMP));
+        paint.setStyle(Paint.Style.FILL);c.drawRoundRect(x,y,x+size,y+size,12,12,paint);paint.setShader(null);
+        box(c,x+5,y+4,size-10,5,0x45ffffff,4);
+        box(c,x+3,y+11,3,size-24,0x22ffffff,2);
+        if(!front&&!active)box(c,x,y,size,size+7,0x180d153d,12);
+        if(front&&!active){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);paint.setColor(Color.WHITE);c.drawRoundRect(x-1,y-1,x+size+1,y+size+9,13,13,paint);paint.setStyle(Paint.Style.FILL);}
+        number(c,String.valueOf(active?Math.max(0,capsule.count-capsule.loaded):capsule.remaining),x+size/2,y+32,size,active||front);
         c.restore();
     }
     private Motion position(int id, float x, float y, long now) {
         Motion m = motions.get(id);
         if (m == null) { m = new Motion(x, y); motions.put(id, m); }
         if (m.goalX != x || m.goalY != y) { m.fromX = m.x; m.fromY = m.y; m.goalX = x; m.goalY = y; m.began = now; }
-        float t = Math.min(1, (now - m.began) / 220f), ease = 1 - (float)Math.pow(1 - t, 3);
+        float t = Math.min(1, (now - m.began) / 280f), ease = 1 - (float)Math.pow(1 - t, 3);
         m.x = m.fromX + (m.goalX - m.fromX) * ease; m.y = m.fromY + (m.goalY - m.fromY) * ease;
         if (t < 1) animating = true;
         return m;
@@ -122,17 +124,18 @@ public final class NativeHud extends View {
             row.sort(Comparator.comparingInt(a -> a.depth)); lanes.add(row); max = Math.max(max, row.size());
         }
         int rows=Math.min(max,GameLayout.rowCapacity(logicalHeight));
+        int[] counts=new int[4];for(int i=0;i<4;i++)counts[i]=lanes.get(i).size();
+        int[] live=GameLayout.liveLanes(counts);
         page = Math.min(page, Math.max(0, max - rows));
         for(int row=0;row<rows;row++){
-            List<NativeGame.Capsule> visible=new ArrayList<>();
-            for(List<NativeGame.Capsule> lane:lanes)if(page+row<lane.size())visible.add(lane.get(page+row));
-            for(int column=0;column<visible.size();column++){
-                NativeGame.Capsule a=visible.get(column);
-                float x=GameLayout.columnX(column,visible.size()),y=GameLayout.QUEUE_Y+row*GameLayout.ROW_STEP;
+            for(int column=0;column<live.length;column++){
+                List<NativeGame.Capsule> lane=lanes.get(live[column]);if(page+row>=lane.size())continue;
+                NativeGame.Capsule a=lane.get(page+row);
+                float x=GameLayout.columnX(column,live.length),y=GameLayout.QUEUE_Y+row*GameLayout.ROW_STEP;
                 Motion m=position(a.id,x,y,now);card(c,a,m.x,m.y,false,game.unlocked(a),touched("capsule",a.id));
-                if(a.group>0&&column+1<visible.size()&&visible.get(column+1).group==a.group){paint.setShader(null);paint.setColor(0xfffff3df);paint.setStrokeWidth(4);c.drawLine(m.x+GameLayout.CARD-2,m.y+25,m.x+GameLayout.CARD+GameLayout.GAP+2,m.y+25,paint);}
+                if(a.group>0&&column+1<live.length&&page+row<lanes.get(live[column+1]).size()&&lanes.get(live[column+1]).get(page+row).group==a.group){paint.setShader(null);paint.setColor(0xfffff3df);paint.setStrokeWidth(4);c.drawLine(m.x+GameLayout.CARD-2,m.y+25,m.x+GameLayout.CARD+GameLayout.GAP+2,m.y+25,paint);}
                 if(game.unlocked(a)&&game.risky(a)){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffd86c52);paint.setStrokeWidth(2);c.drawRoundRect(m.x-2,m.y-2,m.x+50,m.y+50,12,12,paint);paint.setStyle(Paint.Style.FILL);}
-                hit((x-4)*scale,(y-3)*scale,(GameLayout.CARD+8)*scale,GameLayout.ROW_STEP*scale,"capsule",a.id);
+                hit((m.x-4)*scale,(m.y-3)*scale,(GameLayout.CARD+8)*scale,GameLayout.ROW_STEP*scale,"capsule",a.id);
             }
         }
         // Draw flying containers after the queue so their move into the work area is readable.
@@ -165,7 +168,7 @@ public final class NativeHud extends View {
     private String description(Target t) {
         if (t.key.equals("capsule")) { NativeGame.Capsule a = game.capsule(t.id); return NativeGame.COLOR_NAMES[a.color] + " 컨테이너, " + a.remaining + "개, " + (game.unlocked(a) ? "선택 가능" : "뒤쪽"); }
         if (t.key.equals("booster")) return new String[]{"작업 공간 추가", "컬러 제거", "컨테이너 섞기", "뒤쪽 컨테이너 꺼내기"}[t.id] + ", " + save.boosterCount(t.id);
-        return t.key.equals("pause") ? "일시정지" : "배속 " + speed;
+        return t.key.equals("pause") ? "일시정지" : "배속 " + (game.finishing?NativeGame.FINISH_SPEED:speed);
     }
     @Override public AccessibilityNodeProvider getAccessibilityNodeProvider() {
         return new AccessibilityNodeProvider() {
