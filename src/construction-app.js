@@ -69,8 +69,8 @@ function drawContainerLinks(){
  let svg=controls.querySelector('.container-links');if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('container-links');svg.setAttribute('aria-hidden','true');controls.append(svg);}
  svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
  const node=(c,el)=>{const r=el.getBoundingClientRect();return {id:c.id,group:c.group,color:QUEUE_COLORS[c.color],x:r.left-bounds.left,y:r.top-bounds.top,size:r.width};};
- const queued=[],active=[];
- for(const c of game.queue){if(!c.group)continue;const el=document.querySelector(`#queue [data-id="${c.id}"]`);if(el)queued.push(node(c,el));}
+ const queued=[],active=[],byId=new Map(game.queue.map(c=>[String(c.id),c]));
+ for(const el of document.querySelectorAll('#queue [data-id]')){const c=byId.get(el.dataset.id);if(c?.group)queued.push(node(c,el));}
  for(const c of game.slots){if(!c?.group||flights.has(c.id))continue;const el=document.querySelector(`#active [data-id="${c.id}"]`);if(el)active.push(node(c,el));}
  for(const f of flights.values())if(f.capsule.group)active.push(node(f.capsule,f.clone));
  const path=points=>points.length?`M${points.map(p=>p.map(n=>n.toFixed(2)).join(',')).join(' L')}`:'';
