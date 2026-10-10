@@ -15,7 +15,7 @@ export function containerLinks(nodes) {
 function route(a,b){
   const ax=a.x+a.size/2,ay=a.y+a.size/2,bx=b.x+b.size/2,by=b.y+b.size/2,dx=bx-ax,dy=by-ay,size=Math.min(a.size,b.size);
   if(Math.hypot(dx,dy)<1)return [];
-  if(Math.abs(dy)<size*.2&&Math.abs(dx)>size*1.8){const top=Math.min(a.y,b.y)-size*9/48;return [[ax,a.y+size*5/48],[ax,top],[bx,top],[bx,b.y+size*5/48]];}
+  if(Math.abs(dy)<size*.2&&Math.abs(dx)>size*1.8){let rail=Math.min(a.y,b.y)-size*9/48;const below=rail<size*8/48;if(below)rail=Math.max(a.y+a.size,b.y+b.size)+size*9/48;return [[ax,a.y+(below?a.size-size*5/48:size*5/48)],[ax,rail],[bx,rail],[bx,b.y+(below?b.size-size*5/48:size*5/48)]];}
   if(Math.abs(dx)<size*.2&&Math.abs(dy)>size*1.8){const right=Math.max(a.x+a.size,b.x+b.size)+size*9/48;return [[a.x+a.size-size*5/48,ay],[right,ay],[right,by],[b.x+b.size-size*5/48,by]];}
   const ka=(a.size/2-size*5/48)/Math.max(Math.abs(dx),Math.abs(dy)),kb=(b.size/2-size*5/48)/Math.max(Math.abs(dx),Math.abs(dy));
   return [[ax+dx*ka,ay+dy*ka],[bx-dx*kb,by-dy*kb]];

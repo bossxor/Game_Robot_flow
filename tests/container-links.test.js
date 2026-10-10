@@ -9,8 +9,8 @@ test('horizontal and vertical groups link their actual members',()=>{
   assert.deepEqual(containerLinks([card(1,8,0,0),card(2,8,0,60)])[0].points,[[24,43],[24,65]]);
 });
 test('separated partners route around an unrelated container',()=>{
-  const [edge]=containerLinks([card(1,8,0,0),card(2,0,60,0),card(3,8,120,0)]);
-  assert.deepEqual(edge.points,[[24,5],[24,-9],[144,-9],[144,5]]);
+  const [edge]=containerLinks([card(1,8,0,68),card(2,0,60,68),card(3,8,120,68)]);
+  assert.deepEqual(edge.points,[[24,73],[24,59],[144,59],[144,73]]);
   assert.equal(edge.b.id,3);
 });
 test('different groups stay separate and three members use two links',()=>{
@@ -24,4 +24,9 @@ test('colour halves meet at half the full routed length',()=>{
   const length=ps=>ps.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p[0]-ps[i][0],p[1]-ps[i][1]),0);
   assert.equal(length(halves[0]),40);assert.equal(length(halves[1]),40);
   assert.deepEqual(splitLink([]),[[],[]]);
+});
+
+test('top work-slot links remain inside the controls viewport',()=>{
+ const [edge]=containerLinks([card(1,8,0,6),card(2,0,60,6),card(3,8,120,6)]);
+ assert.deepEqual(edge.points,[[24,49],[24,63],[144,63],[144,49]]);
 });

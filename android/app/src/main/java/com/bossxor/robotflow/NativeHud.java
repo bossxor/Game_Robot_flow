@@ -182,7 +182,8 @@ public final class NativeHud extends View {
         float dx=bx-ax,dy=by-ay;if(Math.hypot(dx,dy)<1)return;
         Path path=new Path();
         if(Math.abs(dy)<size*.2f&&Math.abs(dx)>size*1.8f){
-            float top=Math.min(a.y,b.y)-9;path.moveTo(ax,a.y+5);path.lineTo(ax,top);path.lineTo(bx,top);path.lineTo(bx,b.y+5);
+            float rail=Math.min(a.y,b.y)-9;boolean below=rail<8;if(below)rail=Math.max(a.y,b.y)+size+9;
+            path.moveTo(ax,a.y+(below?size-5:5));path.lineTo(ax,rail);path.lineTo(bx,rail);path.lineTo(bx,b.y+(below?size-5:5));
         }else if(Math.abs(dx)<size*.2f&&Math.abs(dy)>size*1.8f){
             float right=Math.max(a.x,b.x)+size+9;path.moveTo(a.x+size-5,ay);path.lineTo(right,ay);path.lineTo(right,by);path.lineTo(b.x+size-5,by);
         }else{
