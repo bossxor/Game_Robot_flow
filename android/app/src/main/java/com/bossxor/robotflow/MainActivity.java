@@ -93,7 +93,7 @@ public final class MainActivity extends Activity {
             final NativeGame owner=game;
             game.listener=(type,color,x,y)->{if(type.equals("select")&&game==owner&&controls!=null)controls.captureLaunches();handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 10배속");}});};
             header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
-            scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.clearMode=false;consume(1);}else toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
+            scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){owner.paused=false;if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.setClearMode(false);owner.paused=false;consume(1);}else{owner.paused=true;toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
             float available=(root.getHeight()>0?root.getHeight()-root.getPaddingBottom():getResources().getDisplayMetrics().heightPixels)/getResources().getDisplayMetrics().density;
             float screenWidth=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
@@ -130,16 +130,16 @@ public final class MainActivity extends Activity {
     }
     private void useBooster(int which){
         if(!save.hasBooster(which)){toast("보유 아이템이 없어요.");return;}
-        if(which==1){controls.clearMode=!controls.clearMode;controls.pullMode=false;scene.clearMode=controls.clearMode;if(controls.clearMode)toast("없앨 색의 블록을 터치하세요.");return;}
-        if(which==3){controls.pullMode=!controls.pullMode;controls.clearMode=false;scene.clearMode=false;if(controls.pullMode)toast("꺼낼 컨테이너를 선택하세요.");return;}
-        controls.clearMode=controls.pullMode=false;scene.clearMode=false;
+        if(which==1){controls.clearMode=!controls.clearMode;controls.pullMode=false;scene.setClearMode(controls.clearMode);game.paused=controls.clearMode;if(controls.clearMode)toast("없앨 색의 블록을 터치하세요 · 드래그로 이동");return;}
+        if(which==3){controls.pullMode=!controls.pullMode;controls.clearMode=false;scene.setClearMode(false);game.paused=false;if(controls.pullMode)toast("꺼낼 컨테이너를 선택하세요.");return;}
+        controls.clearMode=controls.pullMode=false;scene.setClearMode(false);game.paused=false;
         boolean used=which==0?game.extraSlot():game.shuffle();if(used)consume(which);else toast(which==0?"작업 공간은 최대 6칸입니다.":"섞을 컨테이너가 부족해요.");
     }
     private void consume(int which){save.consumeBooster(which);if(controls!=null)controls.invalidate();effect("power");toast("부스터를 사용했어요.");}
     private void showPause(){
         if(game==null||game.status!=NativeGame.PLAYING)return;
-        final NativeGame owner=game;synchronized(owner){owner.paused=true;}
-        dismiss();dialog=new GameSheet(this,"","","",true);dialog.onClose(()->owner.paused=false);
+        final NativeGame owner=game;synchronized(owner){if(controls!=null)controls.clearMode=false;if(scene!=null)scene.setClearMode(false);owner.paused=true;}
+        dismiss();dialog=new GameSheet(this,"","","",true);dialog.onClose(()->owner.paused=controls!=null&&controls.clearMode);
         dialog.icons(new int[]{4,6,7,8},new String[]{"계속 플레이","사운드와 진동 설정","다시 시작","메인"},new Runnable[]{()->{dismiss();owner.paused=false;},this::showSettings,this::confirmRestart,this::confirmLeave});dialog.show();
     }
 
@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
     private void confirmLeave(){
         if(game==null){showHome();return;}final NativeGame owner=game;owner.paused=true;dismiss();
         dialog=new GameSheet(this,"","메인으로 돌아갈까요?","완료하지 않은 스테이지는 다시 시작해야 해요.",true);
-        dialog.onClose(()->owner.paused=false);dialog.primary("계속 플레이",()->{dismiss();owner.paused=false;});dialog.secondary("메인 화면으로",this::showHome);dialog.show();
+        dialog.onClose(()->owner.paused=controls!=null&&controls.clearMode);dialog.primary("계속 플레이",()->{dismiss();owner.paused=controls!=null&&controls.clearMode;});dialog.secondary("메인 화면으로",this::showHome);dialog.show();
     }
     private void showResult(){
         if(game==null||resultShown)return;resultShown=true;boolean won=game.status==NativeGame.WON;int id=game.level.id;

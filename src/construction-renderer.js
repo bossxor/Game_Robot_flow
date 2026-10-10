@@ -1,11 +1,15 @@
 import {PALETTE} from './engine.js';
+import {SelectionCamera} from './selection-camera.js';
 /** Browser Canvas preview; the APK independently renders native GLES meshes. */
 export class ConstructionRenderer{
- constructor(canvas,game){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.game=game;}
+ constructor(canvas,game){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.game=game;this.camera=new SelectionCamera();}
+ setClearMode(enabled){this.camera.setActive(enabled);}
+ pan(dx,dy){this.camera.pan(dx,dy,this.canvas.clientWidth,this.canvas.clientHeight);}
  draw(){const c=this.canvas,g=this.game,w=c.clientWidth,h=c.clientHeight,dpr=Math.min(devicePixelRatio||1,2);if(w===0||h===0)return;if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}const x=this.ctx;x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
   const box=(a,b,c,d,r,col)=>{x.fillStyle=col;x.beginPath();x.roundRect(a,b,c,d,r);x.fill();};
   const bw=Math.min(w*.762,Math.max(60,(h-8-25*w/384)/1.125)),bh=bw*.875,left=(w-bw)/2,top=bw*.09+8,cell=bw/g.width,cy=bh/g.height;
-  this.bounds={left,top,cell,cy};
+  this.bounds={left,top,cell,cy,cx:w/2,centerY:top+bh/2};
+  this.camera.advance(performance.now());x.translate(w/2+this.camera.panX,top+bh/2+this.camera.panY);x.scale(this.camera.zoom,this.camera.zoom);x.translate(-w/2,-top-bh/2);
   box(left-bw*.1,top-bw*.085,bw*1.2,bh+bw*.17,18,'#bda88b');box(left-bw*.095,top-bw*.09,bw*1.19,bh+bw*.17,18,'#fff1d4');box(left-7,top-7,bw+14,bh+14,6,'#ad9576');
   for(const b of g.blocks){if(b.removed)continue;const a=left+b.x*cell,d=top+b.y*cy;box(a,d+.6,cell*.94,cy*.94,.7,'#8e7e70');box(a,d,cell*.94,cy*.85,.7,PALETTE[b.color]);x.fillStyle='#ffffff18';x.fillRect(a+.25,d+.2,cell*.8,.4);}
   const dockY=top+bh+bw*.16;
@@ -19,7 +23,7 @@ export class ConstructionRenderer{
   if(visible||g.truckState==='leaving')truck(truckX,g.truckCargo);for(let i=1;i<visible;i++)truck(w/2-(i+(g.truckState==='entering'?1-g.truckTime/.5:0))*spacing,0);
   if(g.status==='won'){this.robot(x,w*.4,dockY,18*s,PALETTE.green,'mini',Math.sin(performance.now()/80),false);this.robot(x,w*.6,dockY,20*s,PALETTE.yellow,'mega',Math.sin(performance.now()/80),false);}
  }
- pick(x,y){if(!this.bounds)return null;const{left,top,cell,cy}=this.bounds,bx=Math.floor((x-left)/cell),by=Math.floor((y-top)/cy);return this.game.blocks.find(b=>!b.removed&&b.x===bx&&b.y===by)?.color;}
+ pick(x,y){if(!this.bounds)return null;const{left,top,cell,cy,cx,centerY}=this.bounds,point=this.camera.screenToWorld(x,y,cx,centerY),bx=Math.floor((point.x-left)/cell),by=Math.floor((point.y-top)/cy);return this.game.blocks.find(b=>!b.removed&&b.x===bx&&b.y===by)?.color;}
  robot(x,a,b,s,col,type,gait,carrying){x.save();x.translate(a,b);x.fillStyle='#353b4326';x.beginPath();x.ellipse(0,s*.8,s*.7,s*.2,0,0,Math.PI*2);x.fill();const box=(a,b,w,h,r,col)=>{x.fillStyle=col;x.beginPath();x.roundRect(a,b,w,h,r);x.fill();};
   if(type==='mega'){box(-s*.8,s*.22,s*1.6,s*.5,3,'#353b43');box(-s*.68,-s*.35,s*1.36,s*.7,4,col);box(-s*.45,-s*.8,s*.9,s*.6,3,'#fff3df');box(-s*.3,-s*.68,s*.6,s*.22,2,'#353b43');x.strokeStyle='#ffa052';x.lineWidth=2;x.beginPath();x.moveTo(s*.75,s*.5);x.lineTo(s*.9,-s*.3);x.stroke();x.fillStyle='#ffa052';x.beginPath();x.arc(s*.4,-s*.7,2,0,Math.PI*2);x.fill();}
   else{box(-s*.4,s*.38+gait,s*.27,s*.3,2,col);box(s*.13,s*.38-gait,s*.27,s*.3,2,col);box(-s*.3,0,s*.6,s*.5,3,'#fff3df');box(-s*.65,-s*.65,s*1.3,s,4,col);box(-s*.45,-s*.42,s*.9,s*.36,2,'#353b43');box(-s*.27,-s*.32,s*.12,s*.12,1,'#fff3df');box(s*.15,-s*.32,s*.12,s*.12,1,'#fff3df');x.strokeStyle='#353b43';x.lineWidth=1;x.beginPath();x.moveTo(0,-s*.65);x.lineTo(0,-s*.95);x.stroke();}

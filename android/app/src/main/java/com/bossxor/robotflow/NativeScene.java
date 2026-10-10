@@ -24,7 +24,10 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     private float portalZ;
     public interface BlockTap {void tap(int color);}
     public BlockTap blockTap;
-    public boolean clearMode;
+    public volatile boolean clearMode;
+    private float selectionZoom=1,panX,panZ,lastTouchX,lastTouchY,downTouchX,downTouchY;
+    private boolean dragging;
+    public void setClearMode(boolean enabled){clearMode=enabled;if(!enabled){panX=0;panZ=0;}dragging=false;}
     private long perfStarted,perfCost;private int perfFrames;
     private final float[] ink = rgb(0xff353b43), cream = rgb(0xfffff2d8), lime = rgb(0xff89c5a3);
     private static final String VERTEX = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec4 aTint; varying vec4 vTint; uniform mat4 uMvp; uniform mat4 uModel; uniform mat4 uNormal; varying vec3 vNormal; varying vec3 vWorld; void main(){ vTint=aTint; vec4 p=uModel*vec4(aPosition,1.0); vWorld=p.xyz; vNormal=normalize(mat3(uNormal)*aNormal); gl_Position=uMvp*vec4(aPosition,1.0); }";
@@ -34,7 +37,22 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         setEGLContextClientVersion(2); setEGLConfigChooser(8, 8, 8, 8, 24, 0);
         setPreserveEGLContextOnPause(true); setRenderer(this); setRenderMode(RENDERMODE_CONTINUOUSLY);
         setContentDescription("입체 블록 필드와 움직이는 3D 로봇");
-        setOnTouchListener((v,e)->{if(e.getAction()==android.view.MotionEvent.ACTION_UP&&clearMode&&blockTap!=null){int color=pickColor(e.getX(),e.getY());if(color>=0){performClick();blockTap.tap(color);}return true;}return clearMode;});
+        setOnTouchListener((v,e)->{
+            if(!clearMode)return false;
+            float x=e.getX(),y=e.getY();int action=e.getActionMasked();
+            if(action==android.view.MotionEvent.ACTION_DOWN){lastTouchX=downTouchX=x;lastTouchY=downTouchY=y;dragging=false;}
+            if(action==android.view.MotionEvent.ACTION_MOVE){
+                if(Math.hypot(x-downTouchX,y-downTouchY)>8*getResources().getDisplayMetrics().density)dragging=true;
+                NativeGame g=this.game;if(dragging&&g!=null)synchronized(g){
+                    float[] before=ground(lastTouchX/Math.max(1,width)*2-1,1-lastTouchY/Math.max(1,height)*2),after=ground(x/Math.max(1,width)*2-1,1-y/Math.max(1,height)*2);
+                    float limit=g.level.width*.4f;panX=Math.max(-limit,Math.min(limit,panX+before[0]-after[0]));panZ=Math.max(-limit,Math.min(limit,panZ+before[2]-after[2]));
+                }
+                lastTouchX=x;lastTouchY=y;
+            }
+            if(action==android.view.MotionEvent.ACTION_UP&&!dragging&&blockTap!=null){int color=pickColor(x,y);if(color>=0){performClick();blockTap.tap(color);}}
+            if(action==android.view.MotionEvent.ACTION_CANCEL)dragging=false;
+            return true;
+        });
     }
     @Override public boolean performClick(){super.performClick();return true;}
     private int pickColor(float x,float y){NativeGame g=game;if(g==null)return -1;synchronized(g){float[] point=ground(x/Math.max(1,width)*2-1,1-y/Math.max(1,height)*2);int bx=Math.round(point[0]+(g.level.width-1)/2f),by=Math.round(point[2]+(g.level.height-1)/2f);for(NativeGame.Block b:g.blocks)if(!b.removed&&b.x==bx&&b.y==by)return b.color;}return -1;}
@@ -73,6 +91,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
             if (preview) { camera(8, 7, true); drawPreview(); }
             else {
                 for (int i = 0; i < BASE_SIMULATION_RATE * actualSpeed; i++) g.update(dt);
+                float zoomTarget=clearMode?1.6f:1;selectionZoom+=(zoomTarget-selectionZoom)*Math.min(1,(float)dt*14);if(Math.abs(zoomTarget-selectionZoom)<.002f)selectionZoom=zoomTarget;
                 camera(g.level.width, g.level.height, false);
                 drawBoard(g);
                 if(BuildConfig.DEBUG){perfCost+=SystemClock.elapsedRealtimeNanos()-frameStart;perfFrames++;if(now-perfStarted>10_000_000_000L){android.util.Log.d("RoboRelayPerf","render CPU mean="+String.format(java.util.Locale.US,"%.2f",perfCost/1e6/Math.max(1,perfFrames))+"ms bots="+g.bots.size()+" tiles="+g.remainingBlocks()+" GL error="+GLES20.glGetError());perfStarted=now;perfFrames=0;perfCost=0;}}
@@ -85,7 +104,9 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
         if(!home){
             float half=Math.max(sceneWidth/.762f/2,sceneDepth*.62f*aspect);
             Matrix.orthoM(projection,0,-half,half,-half/aspect,half/aspect,.1f,300);
-            Matrix.setLookAtM(view,0,0,sceneWidth*1.875f,sceneWidth*1.25f,0,0,sceneWidth*.146875f,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);portalZ=ground(0,-.92f)[2];if(game!=null)game.portalSpan=half*2;return;
+            Matrix.setLookAtM(view,0,0,sceneWidth*1.875f,sceneWidth*1.25f,0,0,sceneWidth*.146875f,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);portalZ=ground(0,-.92f)[2];if(game!=null)game.portalSpan=half*2;
+            // The selection camera must not change robot origins or the road/portal geometry.
+            if(selectionZoom!=1||panX!=0||panZ!=0){float zoomHalf=half/selectionZoom;Matrix.orthoM(projection,0,-zoomHalf,zoomHalf,-zoomHalf/aspect,zoomHalf/aspect,.1f,300);Matrix.setLookAtM(view,0,panX,sceneWidth*1.875f,sceneWidth*1.25f+panZ,panX,0,sceneWidth*.146875f+panZ,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);}return;
         }
         float halfWidth=4.8f;Matrix.orthoM(projection,0,-halfWidth,halfWidth,-halfWidth/aspect,halfWidth/aspect,.1f,100);
         Matrix.setLookAtM(view,0,0,13,17,0,1.0f,0,0,1,0);Matrix.multiplyMM(vp,0,projection,0,view,0);

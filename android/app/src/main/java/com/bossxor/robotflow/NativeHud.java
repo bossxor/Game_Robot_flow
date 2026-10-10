@@ -238,7 +238,7 @@ public final class NativeHud extends View {
         for(Motion m:motions.values())if(m.rocket){m.advance(now);rocket(c,m,now);if(m.progress<1)activeLinks.add(new LinkNode(m.cargo,m.x,m.y));}
         links(c,queuedLinks);links(c,activeLinks);
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
-        if (clearMode) label(c,"없앨 색의 블록을 터치하세요",192,65,9,INK);
+        if (clearMode) label(c,"색 선택 · 드래그로 이동",192,65,9,INK);
         float tray = GameLayout.trayTop(logicalHeight);
         box(c, 0, tray + 2, 384, 110, 0xffb98b55, 24);
         box(c, 2, tray, 380, 110, 0xffe1c49b, 24);
