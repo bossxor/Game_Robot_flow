@@ -2,13 +2,14 @@ import {Game,COLORS,PALETTE,COLOR_NAMES} from './engine.js';
 import {loadSave,storeSave,recordWin} from './storage.js';
 import {TOTAL_LEVELS,FINISH_SPEED} from './config.js';
 import {AudioSystem} from './audio.js';
+import {containerLinks,splitLink} from './container-links.js';
 import {ConstructionRenderer} from './construction-renderer.js';
 const app=document.querySelector('#app'),save=loadSave(),audio=new AudioSystem(save.settings);
 const keys=['extraSlot','colorClear','shuffle','pullOut'],names=['작업 공간 추가','컬러 제거','셔플','꺼내기'];
 let game,renderer,speed=1,mode=null,page=0,last=performance.now(),uiTime=0,token=0,secret=[];
 const flights=new Map(),seenActive=new Set();
 function clearFlights(){for(const f of flights.values()){f.animation?.cancel();f.clone.remove();}flights.clear();seenActive.clear();}
-function finishFlight(id){const f=flights.get(id);if(!f)return;f.clone.remove();flights.delete(id);document.querySelector(`#active [data-id="${id}"]`)?.classList.remove('flight-hidden');}
+function finishFlight(id){const f=flights.get(id);if(!f)return;f.clone.remove();flights.delete(id);document.querySelector(`#active [data-id="${id}"]`)?.classList.remove('flight-hidden');drawContainerLinks();}
 function flyContainer(c,slot,source){
  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
  const controls=document.querySelector('.controls'),bounds=controls.getBoundingClientRect(),target=document.querySelectorAll('#active .position')[slot].getBoundingClientRect();
@@ -21,7 +22,7 @@ function flyContainer(c,slot,source){
  const dx=origin.left-target.left,dy=origin.top-target.top,tilt=Math.sign(-dx)*10;
  const transform=(x,y,r,sx=1,sy=1)=>`translate(${x}px,${y}px) rotate(${r}deg) scale(${sx},${sy})`;
  const animation=clone.animate([{transform:transform(dx,dy,0),offset:0},{transform:transform(dx,dy,0,1.03,.94),offset:.08},{transform:transform(dx*.5,dy*.5-14,tilt),offset:.45},{transform:transform(0,0,0),offset:.82},{transform:transform(0,1,0,1.03,.94),offset:.91},{transform:'none',offset:1}],{duration:420,easing:'ease-in-out'});
- const flight={clone,animation};flights.set(c.id,flight);animation.onfinish=()=>{if(flights.get(c.id)===flight)finishFlight(c.id);};
+ const flight={clone,animation,capsule:c};flights.set(c.id,flight);animation.onfinish=()=>{if(flights.get(c.id)===flight)finishFlight(c.id);};
 }
 
 const persist=()=>storeSave(save),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -50,7 +51,7 @@ async function start(id){clearFlights();const request=++token;if(game&&game.stat
   renderer=new ConstructionRenderer(document.querySelector('#board'),game);document.querySelector('#board').addEventListener('click',e=>{if(mode==='colorClear'){const color=renderer.pick(e.offsetX,e.offsetY);if(color)use('colorClear',color);}});update();if(level.difficulty)toast(level.difficulty===2?'SUPER HARD · 묶음 작업에 도전하세요':'HARD · 작업 순서를 살펴보세요');let down;const q=document.querySelector('#queue');q.addEventListener('pointerdown',e=>down=e.clientY);q.addEventListener('pointerup',e=>{if(Math.abs(e.clientY-down)>28){page=Math.max(0,page+(e.clientY<down?1:-1));update();}});q.addEventListener('wheel',e=>{e.preventDefault();page=Math.max(0,page+(e.deltaY>0?1:-1));update();},{passive:false});
  }catch(error){home();toast(error.message);}}
 const QUEUE_COLORS={red:'#f36a5a',blue:'#379ddf',yellow:'#f5c642',green:'#52c77b',purple:'#a760dd',orange:'#ffa438',pink:'#ee73be'};
-const card=(c,front,active=false,linked=false)=>{const count=active?Math.max(0,c.robotCount-c.loaded):c.remaining;return btn(`${COLOR_NAMES[c.color]} 컨테이너 ${count}개${c.group?' 묶음':''}${front?'':' 뒤쪽'}`,'container',String(count),`class="card ${front?'front':'rear'} ${!active&&front&&game.risky(c)?'risky':''} ${linked?'linked':''} ${active&&flights.has(c.id)?'flight-hidden':''}" data-id="${c.id}" data-digits="${String(count).length}" style="--color:${QUEUE_COLORS[c.color]}" ${active?'disabled':''}`);};
+const card=(c,front,active=false)=>{const count=active?Math.max(0,c.robotCount-c.loaded):c.remaining;return btn(`${COLOR_NAMES[c.color]} 컨테이너 ${count}개${c.group?' 묶음':''}${front?'':' 뒤쪽'}`,'container',String(count),`class="card ${front?'front':'rear'} ${!active&&front&&game.risky(c)?'risky':''} ${active&&flights.has(c.id)?'flight-hidden':''}" data-id="${c.id}" data-digits="${String(count).length}" style="--color:${QUEUE_COLORS[c.color]}" ${active?'disabled':''}`);};
 function replace(el,html){if(el.dataset.html===html)return;const before=new Map([...document.querySelectorAll('[data-id]')].map(e=>[e.dataset.id,e.getBoundingClientRect()]));el.innerHTML=html;el.dataset.html=html;for(const e of el.querySelectorAll('[data-id]')){const old=before.get(e.dataset.id);if(old&&!e.classList.contains('flight-hidden')){const at=e.getBoundingClientRect();if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&(old.x!==at.x||old.y!==at.y))e.animate([{transform:`translate(${old.x-at.x}px,${old.y-at.y}px)`},{transform:'none'}],{duration:280,easing:'ease-out'});}}}
 function update(){if(!game||!document.querySelector('#active'))return;const lanes=Array.from({length:4},(_,i)=>game.queue.filter(c=>!c.taken&&c.lane===i).sort((a,b)=>a.depth-b.depth));const control=document.querySelector('.controls'),scale=control.clientWidth/384;
  if(!control.dataset.maxHeight)control.dataset.maxHeight=control.clientHeight;const maxHeight=Number(control.dataset.maxHeight),capacity=Math.max(1,Math.min(5,Math.floor((maxHeight/scale-72-68-57)/60)+1)),rows=Math.min(capacity,Math.max(0,...lanes.map(l=>l.length)));control.style.height=`${maxHeight-(capacity-rows)*60*scale}px`;page=Math.min(page,Math.max(0,...lanes.map(l=>l.length-rows)));
@@ -59,9 +60,26 @@ function update(){if(!game||!document.querySelector('#active'))return;const lane
  replace(document.querySelector('#active'),game.slots.map(c=>`<div class="position">${c?card(c,true,true):''}</div>`).join(''));
  for(const {c,slot,source} of launches){flyContainer(c,slot,source);if(flights.has(c.id))document.querySelector(`#active [data-id="${c.id}"]`)?.classList.add('flight-hidden');}
  const live=lanes.filter(l=>l.length);
- replace(document.querySelector('#queue'),live.map((l,column)=>`<div class="queue-lane">${l.slice(page,page+rows).map((c,row)=>card(c,game.isUnlocked(c),false,!!c.group&&live[column+1]?.[page+row]?.group===c.group)).join('')}</div>`).join(''));
+ replace(document.querySelector('#queue'),live.map((l,column)=>`<div class="queue-lane">${l.slice(page,page+rows).map((c,row)=>card(c,game.isUnlocked(c))).join('')}</div>`).join(''));
  replace(document.querySelector('#dock'),keys.map((k,i)=>btn(names[i],`item-${k}`,`${icon(i)}<b>${save.unlimitedItems?'∞':save.boosters[k]}</b>`,`class="item ${mode===k?'selected':''}"`)).join(''));
- document.querySelector('#speed').textContent=`▶ ${game.finishing?FINISH_SPEED:speed}×`;document.querySelector('#board').classList.toggle('clear-target',mode==='colorClear');document.querySelector('#gauge').style.width=`${game.gauge/game.level.megaRobot.requiredGauge*100}%`;}
+ document.querySelector('#speed').textContent=`▶ ${game.finishing?FINISH_SPEED:speed}×`;document.querySelector('#board').classList.toggle('clear-target',mode==='colorClear');document.querySelector('#gauge').style.width=`${game.gauge/game.level.megaRobot.requiredGauge*100}%`;drawContainerLinks();}
+function drawContainerLinks(){
+ const controls=document.querySelector('.controls');if(!game||!controls)return;
+ const bounds=controls.getBoundingClientRect(),scale=bounds.width/384;
+ let svg=controls.querySelector('.container-links');if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('container-links');svg.setAttribute('aria-hidden','true');controls.append(svg);}
+ svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
+ const node=(c,el)=>{const r=el.getBoundingClientRect();return {id:c.id,group:c.group,color:QUEUE_COLORS[c.color],x:r.left-bounds.left,y:r.top-bounds.top,size:r.width};};
+ const queued=[],active=[],byId=new Map(game.queue.map(c=>[String(c.id),c]));
+ for(const el of document.querySelectorAll('#queue [data-id]')){const c=byId.get(el.dataset.id);if(c?.group)queued.push(node(c,el));}
+ for(const c of game.slots){if(!c?.group||flights.has(c.id))continue;const el=document.querySelector(`#active [data-id="${c.id}"]`);if(el)active.push(node(c,el));}
+ for(const f of flights.values())if(f.capsule.group)active.push(node(f.capsule,f.clone));
+ const path=points=>points.length?`M${points.map(p=>p.map(n=>n.toFixed(2)).join(',')).join(' L')}`:'';
+ const html=[...containerLinks(queued),...containerLinks(active)].map(({a,b,points})=>{
+  if(points.length<2)return '';const [first,second]=splitLink(points),start=points[0],end=points.at(-1);
+  return `<path d="${path(points)}" stroke="#404c64" stroke-opacity=".34" stroke-width="${16*scale}" stroke-linecap="round"/><path d="${path(first)}" stroke="${a.color}"/><path d="${path(second)}" stroke="${b.color}"/><circle cx="${start[0]}" cy="${start[1]}" r="${6*scale}" fill="${a.color}"/><circle cx="${end[0]}" cy="${end[1]}" r="${6*scale}" fill="${b.color}"/><path d="${path(points)}" stroke="white" stroke-opacity=".4" stroke-width="${2*scale}" stroke-linecap="round"/>`;
+ }).join('');
+ svg.style.setProperty('--link-width',`${12*scale}px`);if(svg.dataset.html!==html){svg.innerHTML=html;svg.dataset.html=html;}
+}
 function settings(){modal('설정',`<div class="settings">${[['music','음악'],['soundEffect','효과음'],['vibration','진동']].map(([k,n])=>`<label>${n}<input type="checkbox" data-setting="${k}" ${save.settings[k]?'checked':''}></label>`).join('')}${[['musicVolume','음악 음량'],['sfxVolume','효과음 음량']].map(([k,n])=>`<label>${n}<input type="range" min="0" max="1" step=".05" data-setting="${k}" value="${save.settings[k]}"></label>`).join('')}</div>`);}
 function stages(){const begin=Math.max(1,save.lastLevel-9),end=Math.min(TOTAL_LEVELS,Math.max(begin+19,save.highestUnlockedLevel+4));modal('스테이지',`<div class="stages">${Array.from({length:end-begin+1},(_,i)=>{const id=begin+i;return btn(id<=save.highestUnlockedLevel?`스테이지 ${id}`:'미해금 스테이지','stage',id<=save.highestUnlockedLevel?id:'?',`data-id="${id}" ${id>save.highestUnlockedLevel?'disabled':''}`);}).join('')}</div>`);}
 function items(){modal('아이템',keys.map((k,i)=>`<div class="store-item">${icon(i)}<span>${names[i]} <b>${save.unlimitedItems?'∞':save.boosters[k]}</b></span>${btn('구매','buy',`${[100,200,80,120][i]} ◈`,`data-key="${k}" data-price="${[100,200,80,120][i]}" ${save.unlimitedItems?'disabled':''}`)}</div>`).join(''));}
@@ -81,7 +99,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');
 document.addEventListener('input',e=>{const k=e.target.dataset.setting;if(k){save.settings[k]=e.target.type==='checkbox'?e.target.checked:Number(e.target.value);persist();}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.querySelector('#modal-layer'))close();else pause();}if(e.key==='Tab'){const el=document.querySelector('#modal-layer');if(!el)return;const list=[...el.querySelectorAll('button:not(:disabled),input')];if(e.shiftKey&&document.activeElement===list[0]){e.preventDefault();list.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===list.at(-1)){e.preventDefault();list[0]?.focus();}}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();audio.suspend();}});
-function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(game){for(let i=0;i<2*(game.finishing?FINISH_SPEED:speed);i++)game.update(dt);renderer?.draw();uiTime+=dt;if(uiTime>.15){update();uiTime=0;}}requestAnimationFrame(frame);}
+function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(game){for(let i=0;i<2*(game.finishing?FINISH_SPEED:speed);i++)game.update(dt);renderer?.draw();drawContainerLinks();uiTime+=dt;if(uiTime>.15){update();uiTime=0;}}requestAnimationFrame(frame);}
 home();requestAnimationFrame(frame);
 
 window.addEventListener('resize',()=>{const c=document.querySelector('.controls');if(c){delete c.dataset.maxHeight;c.style.height='';update();}});
