@@ -1,6 +1,6 @@
 {
   "name": "roborelay",
-  "version": "0.11.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "RoboRelay — color matching robot puzzle",

@@ -39,8 +39,8 @@ test('Linked containers enter atomically and pull-out moves the whole linked gro
 test('The last five containers autofill and enter the finishing state',async()=>{
  const l=await load(1);l.containers=l.containers.slice(0,5);l.blocks=l.containers.flatMap((c,i)=>Array.from({length:c.robotCount},(_,j)=>({x:j%20,y:i*2+Math.floor(j/20),color:c.color})));const g=new Game(l);g.update(.1);assert.ok(g.finishing);assert.ok(g.queue.every(c=>c.taken));
 });
-test('Streak bonus caps at 50 and repeating a cleared stage adds no streak bonus',()=>{
- const s=defaults();for(let i=1;i<=7;i++)recordWin(s,i,10,1,100);assert.equal(s.streak,7);assert.equal(s.lastStreakBonus,50);const before=s.coins;recordWin(s,7,11,1,100);assert.equal(s.lastStreakBonus,0);assert.equal(s.coins-before,25);
+test('Repeating a cleared stage pays quarter reward without streak bonus',()=>{
+ const s=defaults();for(let i=1;i<=7;i++)recordWin(s,i,10,1,100);const before=s.coins;recordWin(s,7,11,1,100);assert.equal(s.coins-before,25);
 });
 
 test('Key and colour seals block items, unlock at the exact threshold, and reset on restart',()=>{

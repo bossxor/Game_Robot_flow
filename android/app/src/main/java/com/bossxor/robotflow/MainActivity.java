@@ -62,7 +62,7 @@ public final class MainActivity extends Activity {
     }
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
-        if(game!=null&&game.status!=NativeGame.WON&&!inspect){save.streak=0;save.persist();}game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
+        game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
         content.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffa6e6ee,0xffc9efeb,0xffc5eca6}));
         content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(100)));
         try{
@@ -88,22 +88,28 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams difficultyBadge=new LinearLayout.LayoutParams(dp(difficulty==2?142:112),dp(30));difficultyBadge.gravity=Gravity.CENTER;bottom.addView(badge,difficultyBadge);
         Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xffffffff);play.setShadowLayer(dp(2),0,dp(2),0xff39784a);
         GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffb5ed67,0xff63c33c});face.setCornerRadius(dp(32));face.setStroke(dp(4),0xfffff7dc);
-        GradientDrawable base=background(0xff3f873c,32);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,18);
+        GradientDrawable base=background(0xff3f873c,32);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,10);
+        Button daily=button(save.dailyAvailable()?"일일 보상 받기 · ◈ 50":"일일 보상 · 내일 다시",save.dailyAvailable(),this::claimDailyReward);daily.setEnabled(save.dailyAvailable());daily.setAlpha(save.dailyAvailable()?1f:.55f);bottom.addView(daily,new LinearLayout.LayoutParams(-1,dp(48)));gap(bottom,14);
         LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};int[] navIcons={9,11,0,10};
         for(int i=0;i<4;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});icon.homeStyle();column.addView(icon,new LinearLayout.LayoutParams(-1,dp(62)));gap(column,7);column.addView(text(labels[i],11,0xff4f7163,true));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=dp(12);links.addView(column,lp);}
-        bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(244)));
+        bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(280)));
+    }
+    private void claimDailyReward(){
+        int gained=save.claimDaily();
+        if(gained<=0){toast("오늘은 이미 받았어요.");return;}
+        effect("power");toast("일일 보상 ◈ "+gained);showHome();
     }
 
     private void startLevel(int id){
         if(id<1||id>LevelLoader.TOTAL||(!inspect&&id>save.unlocked))return;
         try {
-            if(game!=null&&game.status==NativeGame.PLAYING&&!inspect){save.streak=0;save.persist();}NativeGame next=new NativeGame(LevelLoader.load(getAssets(),id));
+            NativeGame next=new NativeGame(LevelLoader.load(getAssets(),id));
             if(game!=null)game.listener=null;rebuild("game");game=next;resultShown=false;if(!inspect){save.current=id;save.persist();}
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final NativeGame owner=game;
             game.listener=(type,color,x,y)->{if(type.equals("select")&&game==owner&&controls!=null)controls.captureLaunches();handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 10배속");}});};
-            header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
-            scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){owner.paused=false;if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.setClearMode(false);owner.paused=false;consume(1);}else{owner.paused=true;toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
+            header=new NativeHud(this,game,save,true,this::action);header.speed=save.gameSpeed;content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
+            scene=new NativeScene(this,game,false);scene.speed=save.gameSpeed;scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){owner.paused=false;if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.setClearMode(false);owner.paused=false;consume(1);}else{owner.paused=true;toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
             float available=(root.getHeight()>0?root.getHeight()-root.getPaddingBottom():getResources().getDisplayMetrics().heightPixels)/getResources().getDisplayMetrics().density;
             float screenWidth=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
@@ -114,7 +120,7 @@ public final class MainActivity extends Activity {
                 dialog=new GameSheet(this,"","현장에 오신 걸 환영해요","",false);
                 dialog.card("01","같은 색을 선택하세요","각 열의 맨 앞 컨테이너를 선택하세요.\n같은 색 로봇이 블록을 회수합니다.",0xffb7dbe2);
                 dialog.card("02","트럭으로 짐을 운반해요","컨테이너는 동시에 5개까지 작업합니다.\n공용 트럭은 짐이 차면 출발합니다.",0xfff1d38b);
-                dialog.card("03","중장비 로봇을 불러요","게이지를 채우고 컨테이너를 선택하면\n궤도 로봇이 최대 8개를 회수합니다.",LIME);
+                dialog.card("03","배속으로 속도를 고르세요","1배 · 3배 · 5배를 고를 수 있어요.\n마지막 작업은 자동으로 10배로 끝납니다.",LIME);
                 dialog.primary("좋아요, 출격!  →",()->{dismiss();getPreferences(MODE_PRIVATE).edit().putBoolean("constructionTutorial",true).apply();synchronized(owner){owner.paused=false;}});dialog.show();
             }
         }catch(Exception error){showHome();toast("레벨 로딩 오류: "+error.getMessage());}
@@ -129,7 +135,7 @@ public final class MainActivity extends Activity {
         if(key.equals("home")){confirmLeave();return;}
         if(key.equals("pause")){showPause();return;}
         synchronized(game){
-            if(key.equals("speed")){if(game.finishing)return;scene.speed=scene.speed%4+1;header.speed=scene.speed;header.invalidate();return;}
+            if(key.equals("speed")){if(game.finishing)return;save.gameSpeed=PlayerSave.nextSpeed(save.gameSpeed);save.persist();scene.speed=save.gameSpeed;header.speed=save.gameSpeed;header.invalidate();return;}
             if(key.equals("queue-page")){controls.page=Math.max(0,controls.page+value);controls.invalidate();return;}
             if(key.equals("capsule")){
                 if(controls.pullMode){if(save.hasBooster(3)&&game.pullOut(value)){save.consumeBooster(3);controls.pullMode=false;effect("select");}else toast("뒤쪽에 잠긴 컨테이너를 선택하세요.");}
@@ -165,17 +171,16 @@ public final class MainActivity extends Activity {
     }
     private void showResult(){
         if(game==null||resultShown)return;resultShown=true;boolean won=game.status==NativeGame.WON;int id=game.level.id;
-        if(!won&&!inspect){save.streak=0;save.persist();}int reward=won&&!inspect?save.win(game):0;dismiss();
+        int reward=won&&!inspect?save.win(game):0;dismiss();
         dialog=new GameSheet(this,won?"MISSION COMPLETE":"ONE MORE TRY",won?"작업 완료":"다시 도전",won?(id==LevelLoader.TOTAL?"새 현장이 준비되면 다시 만나요.":"다음 현장이 열렸어요."):"슬롯이 가득 차서 로봇이 출발하지 못하고 있어요.",false);
         if(won){
             dialog.card("✦","STAGE "+String.format(Locale.KOREA,"%03d",id)+" 완료",String.format(Locale.KOREA,"%d초 · %d회 출격 · %d개 블록 회수",(int)game.time,game.moves,game.collected),LIME);
-            dialog.card("◈","코인 +"+reward,save.lastStreakBonus>0?save.streak+"연속 완료 · 보너스 +"+save.lastStreakBonus+" 포함":"다음 미션을 위한 부스터를 준비해보세요.",0xfff1d38b);
+            dialog.card("◈","코인 +"+reward,"다음 미션을 위한 부스터를 준비해보세요.",0xfff1d38b);
             dialog.primary(id==LevelLoader.TOTAL?"메인":"다음 현장",()->{if(id==LevelLoader.TOTAL)showHome();else startLevel(id+1);});
             dialog.secondary("메인 화면으로",this::showHome);
         }else{
             dialog.card("↗","아직 기회가 있어요","슬롯 추가나 컬러 제거로 길을 열거나\n다른 순서로 다시 도전해보세요.",0xffb7dbe2);
             dialog.primary("다시 도전하기",()->startLevel(id));
-            dialog.secondary("부스터로 이어가기",()->{dismiss();resultShown=false;toast("하단에서 사용할 부스터를 선택하세요.");});
             dialog.secondary("메인 화면으로",this::showHome);
         }dialog.show();
     }
@@ -219,9 +224,8 @@ public final class MainActivity extends Activity {
         dialog.onClose(this::showSettings);dialog.primary("기록 유지하기",this::showSettings);dialog.secondary("모든 진행 초기화",()->{save.reset();setupAudio();showHome();toast("진행 데이터를 초기화했어요.");});dialog.show();
     }
     private void showRobots(){
-        dismiss();dialog=new GameSheet(this,"","작업 로봇","7가지 팀 색상으로 출격합니다.",true);
-        dialog.card("●","운반원 · COURIER","안전모와 작은 부츠 · 한 번에 1개\n양손으로 짐을 들어 트럭에 싣습니다.",0xff83c6a3);
-        dialog.card("▰","중장비 · BUILDER","궤도와 리프트 · 최대 8개\n게이지가 차면 다음 출격에 합류합니다.",LIME);
+        dismiss();dialog=new GameSheet(this,"","작업 로봇","컨테이너 색 본체에 흰 포인트로 구분합니다.",true);
+        dialog.card("●","운반 로봇","몸·머리·다리는 담당 컨테이너 색\n손·얼굴 플레이트만 흰색입니다.",0xff83c6a3);
         dialog.primary("닫기",this::dismiss);dialog.show();
     }
     private void showItems(){

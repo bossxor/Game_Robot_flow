@@ -33,7 +33,7 @@ public final class NativeHud extends View {
     }
     private static class Motion {
         float x, y, fromX, fromY, goalX, goalY;
-        long began;
+        long began, dustUntil;
         boolean rocket;
         float progress;
         NativeGame.Capsule cargo;
@@ -44,6 +44,7 @@ public final class NativeHud extends View {
             float ease = rocket ? t*t*(3-2*t) : 1-(float)Math.pow(1-t,3);
             x=fromX+(goalX-fromX)*ease; y=fromY+(goalY-fromY)*ease;
             if(rocket)y-=(float)Math.sin(Math.PI*t)*14;
+            if(rocket && progress >= 1 && dustUntil == 0) dustUntil = now + 200;
         }
     }
     public NativeHud(Context context, NativeGame game, PlayerSave save, boolean header, Actions actions) {
@@ -85,9 +86,6 @@ public final class NativeHud extends View {
         box(c,width/2-badgeWidth/2,49,badgeWidth,22,shade(badgeColor,.65f),9);
         box(c,width/2-badgeWidth/2,47,badgeWidth,22,badgeColor,9);
         label(c,new String[]{"Normal","Hard","Super Hard"}[game.level.difficulty],width/2,63,12,Color.WHITE);
-        // The builder gauge stays close to the title instead of splitting the container rows.
-        box(c, width / 2 - 42, 75, 84, 3, 0xffdac6a6, 2);
-        if (game.gauge > 0) box(c, width / 2 - 42, 75, 84f * game.gauge / game.level.megaRequired, 3, 0xffee9d4d, 2);
     }
     private static final int MUTED_COLOR=0xff93806b;
     private static final int[] CARD_COLORS=NativeGame.COLORS;
@@ -153,21 +151,34 @@ public final class NativeHud extends View {
     }
     private void rocket(Canvas c,Motion m,long now) {
         float p=m.progress,size=GameLayout.CARD;
-        if(p>=1)return;
-        animating=true;c.save();c.translate(m.x+size/2,m.y+size/2);
-        float travel=(float)Math.sin(Math.PI*Math.min(1,p/.82f));
-        c.rotate(Math.signum(m.goalX-m.fromX)*10*travel);
-        float squash=p<.08f?1-.06f*p/.08f:p>.82f?1-.06f*(float)Math.sin((p-.82f)/.18f*Math.PI):1;
-        c.scale(1+(1-squash)*.5f,squash);c.translate(-size/2,-size/2);
-        if(p<.82f){
-            float flame=15+8*(float)Math.sin(now*.09),base=size+9;
-            box(c,size/2-8,size+4,16,8,0xff657b98,4);
-            Path plume=new Path();plume.moveTo(size/2-8,base);plume.quadTo(size/2-12,base+flame*.55f,size/2,base+flame);plume.quadTo(size/2+12,base+flame*.55f,size/2+8,base);plume.close();
-            paint.setColor(0xffff9748);c.drawPath(plume,paint);
-            plume.reset();plume.moveTo(size/2-4,base);plume.lineTo(size/2,base+flame*.72f);plume.lineTo(size/2+4,base);plume.close();paint.setColor(0xfffff1a6);c.drawPath(plume,paint);
-            box(c,-4,size-10,8,19,0xffd2eef8,4);box(c,size-4,size-10,8,19,0xffd2eef8,4);
+        if(p<1){
+            animating=true;c.save();c.translate(m.x+size/2,m.y+size/2);
+            float travel=(float)Math.sin(Math.PI*Math.min(1,p/.82f));
+            c.rotate(Math.signum(m.goalX-m.fromX)*10*travel);
+            float squash=p<.08f?1-.06f*p/.08f:p>.82f?1-.06f*(float)Math.sin((p-.82f)/.18f*Math.PI):1;
+            c.scale(1+(1-squash)*.5f,squash);c.translate(-size/2,-size/2);
+            if(p<.82f){
+                float flame=15+8*(float)Math.sin(now*.09),base=size+9;
+                box(c,size/2-8,size+4,16,8,0xff657b98,4);
+                Path plume=new Path();plume.moveTo(size/2-8,base);plume.quadTo(size/2-12,base+flame*.55f,size/2,base+flame);plume.quadTo(size/2+12,base+flame*.55f,size/2+8,base);plume.close();
+                paint.setColor(0xffff9748);c.drawPath(plume,paint);
+                plume.reset();plume.moveTo(size/2-4,base);plume.lineTo(size/2,base+flame*.72f);plume.lineTo(size/2+4,base);plume.close();paint.setColor(0xfffff1a6);c.drawPath(plume,paint);
+                box(c,-4,size-10,8,19,0xffd2eef8,4);box(c,size-4,size-10,8,19,0xffd2eef8,4);
+            }
+            card(c,m.cargo,0,0,true,true,false);c.restore();
         }
-        card(c,m.cargo,0,0,true,true,false);c.restore();
+        if(m.dustUntil>now){
+            animating=true;
+            float life=1-(m.dustUntil-now)/200f;
+            float cx=m.goalX+size/2,cy=m.goalY+size;
+            paint.setStyle(Paint.Style.FILL);
+            for(int i=0;i<6;i++){
+                float angle=i*(float)Math.PI/3f,radius=6+life*18+(i%2)*4;
+                int alpha=Math.max(0,Math.min(255,(int)((1-life)*140)));
+                paint.setColor((alpha<<24)|0x00c4b49a);
+                c.drawCircle(cx+(float)Math.cos(angle)*radius,cy+(float)Math.sin(angle)*.45f*radius,3+life*4,paint);
+            }
+        }
     }
     private boolean touched(String key, int id) { return pressed != null && pressed.key.equals(key) && pressed.id == id; }
     private static class LinkNode {

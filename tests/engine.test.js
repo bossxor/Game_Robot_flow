@@ -85,7 +85,7 @@ for (const chance of [0.1, 1]) test(`All ${TOTAL_LEVELS} levels also clear with 
 test('Local save tolerates broken JSON; rewards, records and unlocks persist', () => {
   let content = '{bad json'; const storage = { getItem: () => content, setItem: (_, value) => { content = value; } };
   assert.deepEqual(loadSave(storage), defaults()); const save = defaults(); recordWin(save, 1, 60, 8, 100); recordWin(save, 1, 80, 10, 100);
-  assert.equal(save.coins, 435); assert.equal(save.cleared[1].bestTime, 60); assert.equal(save.highestUnlockedLevel, 2);
+  assert.equal(save.coins, 425); assert.equal(save.cleared[1].bestTime, 60); assert.equal(save.highestUnlockedLevel, 2);
   storeSave(save, storage); assert.deepEqual(loadSave(storage), save);
   const corrupt = sanitizeSave({ ...save, coins: -9, settings: { musicVolume: 7 }, boosters: { extraSlot: -4 } });
   assert.equal(corrupt.coins, 0); assert.equal(corrupt.settings.musicVolume, 1); assert.equal(corrupt.boosters.extraSlot, 0);

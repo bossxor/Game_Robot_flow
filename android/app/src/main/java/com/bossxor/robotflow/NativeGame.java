@@ -173,7 +173,7 @@ public final class NativeGame {
         Capsule selected=capsule(id);List<Capsule> group=selectionGroup(selected);int free=0;for(Capsule c:slots)if(c==null)free++;
         if(status!=PLAYING||paused||group.isEmpty()||free<group.size())return false;
         for(Capsule c:group)if(!unlocked(c))return false;
-        for(Capsule c:group){int slot=slots.indexOf(null);c.taken=true;c.selectedAt=time;c.mega=gauge>=level.megaRequired;if(c.mega)gauge=0;slots.set(slot,c);if(!available(c.color).isEmpty())addGauge(15);event("select",c.color,origin(slot).x,origin(slot).y);}
+        for(Capsule c:group){int slot=slots.indexOf(null);c.taken=true;c.selectedAt=time;c.mega=false;slots.set(slot,c);event("select",c.color,origin(slot).x,origin(slot).y);}
         moves++;return true;
     }
     private List<Point> path(Flood f, int end) {
@@ -189,8 +189,8 @@ public final class NativeGame {
         Point origin = origin(slot); int start = key(Math.max(-1, Math.min(width, Math.round(origin.x))), height + 4);
         Flood f = flood(gx(start), gy(start));
         Bot bot = new Bot(); bot.id = nextBotId++; bot.capsuleId = c.id; bot.color = c.color; bot.x = origin.x; bot.y = origin.y;
-        bot.kind = c.mega ? 1 : 0;
-        int capacity = Math.min(c.remaining, bot.kind == 1 ? level.megaCapacity : 1);
+        bot.kind = 0;
+        int capacity = Math.min(c.remaining, 1);
         bot.route.add(new Point(gx(start), gy(start)));
         for (int n = 0; n < capacity && !targets.isEmpty(); n++) {
             Block best = null; int approach = -1, distance = Integer.MAX_VALUE, ties = 0;

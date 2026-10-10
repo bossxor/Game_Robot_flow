@@ -9,16 +9,19 @@ import java.nio.charset.StandardCharsets;
 /** Native local progress. Reads old localStorage JSON once when upgrading. */
 public final class PlayerSave {
     private final SharedPreferences prefs;
-    public int current, unlocked, coins, streak, lastStreakBonus;
+    public int current, unlocked, coins, gameSpeed;
+    public long lastDailyDay;
     public boolean music, sound, vibration, unlimitedItems;
     public float musicVolume, soundVolume;
     public final int[] boosters = new int[4];
     public PlayerSave(Context context) {
-        prefs = context.getSharedPreferences("robotflow.native.v1", Context.MODE_PRIVATE);
+        // v2 clears redesign-era progress (hearts/ads/streak migration not carried).
+        prefs = context.getSharedPreferences("robotflow.native.v2", Context.MODE_PRIVATE);
         if (!prefs.contains("initialized")) migrateLegacy(context);
         current = clamp(prefs.getInt("current", 1), 1, LevelLoader.TOTAL); unlocked = clamp(prefs.getInt("unlocked", 1), current, LevelLoader.TOTAL);
         coins = Math.max(0, prefs.getInt("coins", 300));
-        streak=Math.max(0,prefs.getInt("streak",0));
+        gameSpeed = normalizeSpeed(prefs.getInt("gameSpeed", 1));
+        lastDailyDay = prefs.getLong("lastDailyDay", 0);
         music = prefs.getBoolean("music", true); sound = prefs.getBoolean("sound", true); vibration = prefs.getBoolean("vibration", true);
         unlimitedItems = prefs.getBoolean("unlimitedItems", false);
         musicVolume = prefs.getFloat("musicVolume", .35f); soundVolume = prefs.getFloat("soundVolume", .65f);
@@ -26,8 +29,10 @@ public final class PlayerSave {
         persist();
     }
     private static int clamp(int n, int min, int max) { return Math.max(min, Math.min(max, n)); }
+    public static int normalizeSpeed(int speed) { return speed == 3 || speed == 5 ? speed : 1; }
+    public static int nextSpeed(int speed) { return speed == 1 ? 3 : speed == 3 ? 5 : 1; }
     public void persist() {
-        SharedPreferences.Editor e = prefs.edit().putBoolean("initialized", true).putInt("current", current).putInt("unlocked", unlocked).putInt("coins", coins).putInt("streak",streak)
+        SharedPreferences.Editor e = prefs.edit().putBoolean("initialized", true).putInt("current", current).putInt("unlocked", unlocked).putInt("coins", coins).putInt("gameSpeed", gameSpeed).putLong("lastDailyDay", lastDailyDay)
                 .putBoolean("music", music).putBoolean("sound", sound).putBoolean("vibration", vibration).putBoolean("unlimitedItems", unlimitedItems).putFloat("musicVolume", musicVolume).putFloat("soundVolume", soundVolume);
         for (int i = 0; i < 4; i++) e.putInt("booster" + i, boosters[i]); e.apply();
     }
@@ -37,11 +42,17 @@ public final class PlayerSave {
     public String boosterCount(int which) { return unlimitedItems ? "∞" : String.valueOf(boosters[which]); }
     public float record(int level) { return prefs.getFloat("record" + level, 0); }
     public int win(NativeGame game) {
-        int id = game.level.id;boolean first=!cleared(id);lastStreakBonus=first?Math.min(++streak,5)*10:0;int reward=(first?game.level.reward:game.level.reward/4)+lastStreakBonus;
+        int id = game.level.id;boolean first=!cleared(id);int reward=first?game.level.reward:game.level.reward/4;
         float best = record(id); if (best == 0 || game.time < best) prefs.edit().putFloat("record" + id, (float)game.time).apply();
         coins += reward; unlocked = Math.max(unlocked, Math.min(LevelLoader.TOTAL, id + 1)); current = Math.min(LevelLoader.TOTAL, id + 1); persist(); return reward;
     }
-    public void reset() { prefs.edit().clear().commit(); current = unlocked = 1; coins = 300;streak=lastStreakBonus=0; music = sound = vibration = true; unlimitedItems = false; musicVolume = .35f; soundVolume = .65f; for(int i=0;i<4;i++)boosters[i]=i==1?2:3; persist(); }
+    public boolean dailyAvailable() { return lastDailyDay != System.currentTimeMillis() / 86_400_000L; }
+    public int claimDaily() {
+        long day = System.currentTimeMillis() / 86_400_000L;
+        if (lastDailyDay == day) return 0;
+        lastDailyDay = day; coins += 50; persist(); return 50;
+    }
+    public void reset() { prefs.edit().clear().commit(); current = unlocked = 1; coins = 300; gameSpeed = 1; lastDailyDay = 0; music = sound = vibration = true; unlimitedItems = false; musicVolume = .35f; soundVolume = .65f; for(int i=0;i<4;i++)boosters[i]=i==1?2:3; persist(); }
     private void migrateLegacy(Context context) {
         File directory = new File(context.getApplicationInfo().dataDir, "app_webview/Default/Local Storage/leveldb");
         File[] files = directory.listFiles((dir,name) -> name.endsWith(".log") || name.endsWith(".ldb")); if (files == null) return;

@@ -116,7 +116,7 @@ export class Game {
   select(id) {
     if (this.status !== 'playing' || this.paused) return false;
     const c = this.queue.find(c => c.id === id), index = this.slots.indexOf(null);
-    if(this.construction){const group=this.selectionGroup(c);if(!group.length||this.slots.filter(c=>!c).length<group.length||group.some(c=>!this.isUnlocked(c)))return false;for(const q of group){q.taken=true;q.selectedAt=this.time;q.mega=this.gauge>=this.level.megaRobot.requiredGauge;if(q.mega)this.gauge=0;this.slots[this.slots.indexOf(null)]=q;if(this.available(q.color).length)this.addGauge(15);}this.moves++;this.onEvent({type:'select',color:c.color});return true;}
+    if(this.construction){const group=this.selectionGroup(c);if(!group.length||this.slots.filter(c=>!c).length<group.length||group.some(c=>!this.isUnlocked(c)))return false;for(const q of group){q.taken=true;q.selectedAt=this.time;q.mega=false;this.slots[this.slots.indexOf(null)]=q;}this.moves++;this.onEvent({type:'select',color:c.color});return true;}
     if (!c || !this.isUnlocked(c) || index < 0) return false;
     c.taken = true; c.mega = this.gauge >= this.level.megaRobot.requiredGauge;
     if (c.mega) this.gauge = 0;
@@ -132,8 +132,8 @@ export class Game {
     let start = { x: Math.max(-1, Math.min(this.width, Math.round(origin.x))), y: this.height + 2 };
     let flood = this.flood(start), targets = this.available(c.color);
     if (!targets.length) return;
-    const type = c.mega ? 'mega' : this.random() < (c.specialRobotChance ?? this.level.powerRobotChance) ? (this.construction ? 'mega' : 'power') : 'mini';
-    const capacity = Math.min(this.construction ? c.remaining : 256,type === 'mega' ? this.level.megaRobot.blockCount : type === 'power' ? 3 : 1);
+    const type = this.construction ? 'mini' : c.mega ? 'mega' : this.random() < (c.specialRobotChance ?? this.level.powerRobotChance) ? 'power' : 'mini';
+    const capacity = Math.min(this.construction ? c.remaining : 256,this.construction ? 1 : type === 'mega' ? this.level.megaRobot.blockCount : type === 'power' ? 3 : 1);
     const route = [{ ...start }], selected = [];
     for (let k = 0; k < capacity && targets.length; k++) {
       const options = targets.flatMap(b => this.neighbors(b).filter(p => flood.distances.has(`${p.x},${p.y}`)).map(p => ({ b, p, d: flood.distances.get(`${p.x},${p.y}`), tie: this.random() })));

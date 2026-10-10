@@ -12,7 +12,7 @@ import javax.microedition.khronos.opengles.GL10;
 public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Renderer {
     public volatile NativeGame game;
     public volatile int speed = 1;
-    private static final int BASE_SIMULATION_RATE = 2;
+    private static final int BASE_SIMULATION_RATE = 1;
     public volatile boolean preview;
     private int program, position, normal, mvpUniform, modelUniform, colorUniform, normalUniform, tintAttribute, glossUniform;
     private final float[] projection = new float[16], view = new float[16], vp = new float[16], model = new float[16], mvp = new float[16], inverse = new float[16], normalMatrix = new float[16];
@@ -29,7 +29,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     private boolean dragging;
     public void setClearMode(boolean enabled){clearMode=enabled;if(!enabled){panX=0;panZ=0;}dragging=false;}
     private long perfStarted,perfCost;private int perfFrames;
-    private final float[] ink = rgb(0xff353b43), cream = rgb(0xfffff2d8), lime = rgb(0xff89c5a3);
+    private final float[] ink = rgb(0xff2a3038), cream = rgb(0xffffffff), white = rgb(0xffffffff), lime = rgb(0xff89c5a3);
     private static final String VERTEX = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec4 aTint; varying vec4 vTint; uniform mat4 uMvp; uniform mat4 uModel; uniform mat4 uNormal; varying vec3 vNormal; varying vec3 vWorld; void main(){ vTint=aTint; vec4 p=uModel*vec4(aPosition,1.0); vWorld=p.xyz; vNormal=normalize(mat3(uNormal)*aNormal); gl_Position=uMvp*vec4(aPosition,1.0); }";
     private static final String FRAGMENT = "precision mediump float; varying vec3 vNormal; varying vec3 vWorld; uniform vec4 uColor; uniform float uGloss; varying vec4 vTint; void main(){ vec3 n=normalize(vNormal); vec3 l=normalize(vec3(-0.5,1.0,0.75)); float diffuse=max(dot(n,l),0.0); float rim=pow(1.0-max(n.y,0.0),2.0)*0.055; vec3 color=uColor.rgb*vTint.rgb*(0.60+0.40*diffuse)+rim; float shine=pow(max(dot(reflect(-l,n),normalize(vec3(0.0,0.65,1.0))),0.0),28.0)*uGloss; gl_FragColor=vec4(color+vec3(shine),uColor.a); }";
     public NativeScene(Context context, NativeGame game, boolean preview) {
@@ -234,30 +234,33 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
             part(x,z,size,angle,0,.33f-crouch*.1f,.92f,.91f,.16f,.45f,ink,rounded);
             if(carrying)for(int i=0;i<3;i++)part(x,z,size,angle,(i-1)*.24f,.55f,.92f,.22f,.24f,.25f,color,rounded);
         }else{
-            part(x,z,size,angle,0,.49f+bob,0,.47f,.42f,.35f,color,rounded);part(x,z,size,angle,0,.47f+bob,.20f,.38f,.25f,.04f,rgb(0xffffa052),rounded);
+            // Dark outline shell so body color stays readable on matching blocks.
+            part(x,z,size,angle,0,.49f+bob,0,.52f,.46f,.39f,ink,rounded);
+            part(x,z,size,angle,0,.97f+bob,0,.96f,.76f,.72f,ink,rounded);
+            part(x,z,size,angle,0,.49f+bob,0,.47f,.42f,.35f,color,rounded);
             part(x,z,size,angle,0,.97f+bob,0,.89f,.70f,.66f,color,rounded);
-            part(x,z,size,angle,0,1.25f+bob,0,.98f,.30f,.75f,cream,sphere);
-            part(x,z,size,angle,0,1.24f+bob,.18f,1.02f,.09f,.80f,cream,rounded);
-            part(x,z,size,angle,0,1.39f+bob,0,.11f,.22f,.1f,rgb(0xffffa052),rounded);
+            part(x,z,size,angle,0,1.25f+bob,0,.98f,.30f,.75f,white,sphere);
+            part(x,z,size,angle,0,1.24f+bob,.18f,1.02f,.09f,.80f,white,rounded);
+            part(x,z,size,angle,0,1.39f+bob,0,.11f,.22f,.1f,white,rounded);
             part(x,z,size,angle,0,.99f+bob,.34f,.72f,.42f,.05f,ink,rounded);
             for(int side:new int[]{-1,1}){
                 float stride=(float)Math.sin(distance*6+ (side==1?Math.PI:0))*.13f;
-                part(x,z,size,angle,side*.19f,.15f,stride,.24f,.23f,.35f,cream,rounded);
+                part(x,z,size,angle,side*.19f,.15f,stride,.27f,.26f,.38f,ink,rounded);
+                part(x,z,size,angle,side*.19f,.15f,stride,.24f,.23f,.35f,color,rounded);
                 boolean wave=preview||game!=null&&game.status==NativeGame.WON;
                 if(preview)part(x,z,size,angle,side*.51f,1.35f,-.08f,.13f,.62f,.15f,color,rounded);
-                part(x,z,size,angle,side*(wave?.50f:.39f),preview?1.70f:wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,preview?-.08f:carrying?.32f:-stride,.19f,.27f,.23f,cream,rounded);
-                part(x,z,size,angle,side*.52f,1+bob,0,.12f,.25f,.3f,cream,sphere);
+                part(x,z,size,angle,side*(wave?.50f:.39f),preview?1.70f:wave?1.05f+(float)Math.sin(clock*9)*.15f:.49f+bob,preview?-.08f:carrying?.32f:-stride,.19f,.27f,.23f,white,rounded);
+                part(x,z,size,angle,side*.52f,1+bob,0,.12f,.25f,.3f,white,sphere);
             }
             if(carrying)part(x,z,size,angle,0,.56f+bob,.42f,.42f,.38f,.36f,color,rounded);
         }
         float faceY=kind==1?.89f:.99f+bob,faceZ=kind==1?.26f:.38f;
         boolean blink=Math.sin(clock*1.7+x)>.995;
         for(int side:new int[]{-1,1}){
-            part(x,z,size,angle,side*.17f,faceY,faceZ,preview?.15f:.10f,blink?.025f:preview?.17f:.12f,.035f,cream,preview?sphere:rounded);
-            if(preview&&!blink){part(x,z,size,angle,side*.17f,faceY,faceZ+.02f,.07f,.11f,.025f,ink,sphere);part(x,z,size,angle,side*.17f-.015f,faceY+.025f,faceZ+.035f,.028f,.035f,.02f,cream,sphere);}
-            if(preview)part(x,z,size,angle,side*.29f,faceY-.10f,faceZ,.11f,.06f,.025f,rgb(0xfff7a4a1),sphere);
+            part(x,z,size,angle,side*.17f,faceY,faceZ,preview?.15f:.10f,blink?.025f:preview?.17f:.12f,.035f,white,preview?sphere:rounded);
+            if(preview&&!blink){part(x,z,size,angle,side*.17f,faceY,faceZ+.02f,.07f,.11f,.025f,ink,sphere);part(x,z,size,angle,side*.17f-.015f,faceY+.025f,faceZ+.035f,.028f,.035f,.02f,white,sphere);}
         }
-        part(x,z,size,angle,0,faceY-.12f,faceZ,.13f,.035f,.035f,cream,rounded);
+        part(x,z,size,angle,0,faceY-.12f,faceZ,.13f,.035f,.035f,white,rounded);
     }
     private void part(float x,float z,float scale,float angle,float px,float py,float pz,float sx,float sy,float sz,float[] color,Mesh mesh) {
         float radians = (float)Math.toRadians(angle), sin = (float)Math.sin(radians), cos = (float)Math.cos(radians);
