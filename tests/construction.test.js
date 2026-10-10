@@ -4,7 +4,21 @@ import {readFile} from 'node:fs/promises';
 import {Game,validateLevel,seededRandom,COLORS} from '../src/engine.js';
 import {TOTAL_LEVELS} from '../src/config.js';
 import {defaults,sanitizeSave,recordWin} from '../src/storage.js';
+import {planQueue} from '../src/queue-planner.js';
 const load=async id=>JSON.parse(await readFile(`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,'utf8'));
+test('All 500 planned queues preserve inventory; premature inner colours can fill five slots',async()=>{
+ for(let id=1;id<=TOTAL_LEVELS;id++){
+  const original=await load(id),planned=validateLevel(planQueue(original));
+  assert.deepEqual(planned.blocks,original.blocks);assert.equal(planned.slotCount,5);
+  for(const color of COLORS)assert.equal(planned.containers.filter(c=>c.color===color).reduce((n,c)=>n+c.robotCount,0),original.containers.filter(c=>c.color===color).reduce((n,c)=>n+c.robotCount,0));
+  assert.deepEqual(planQueue(planned),planned);assert.equal(original.queueVersion,undefined);
+  const trapLane=(id+Math.floor(id/10))%4,waiting=planned.containers.filter(c=>c.lane===trapLane);
+  assert.ok(waiting.length>=(id===1?2:[5,7,9][planned.difficulty]));
+  if(id===1)continue;
+  const g=new Game(planned);for(let i=0;i<5;i++){const next=g.queue.find(c=>c.lane===trapLane&&g.isUnlocked(c));assert.equal(g.available(next.color).length,0);assert.ok(g.select(next.id));}
+  g.update(.1);assert.equal(g.status,'lost',`premature selections in level ${id}`);
+ }
+});
 test('Browser construction data covers 500 distinct boards with exact inventories',async()=>{
  const boards=new Set();assert.equal(TOTAL_LEVELS,500);for(let id=1;id<=TOTAL_LEVELS;id++){const l=validateLevel(await load(id));assert.equal(l.levelId,id);assert.equal(l.board.width,id<=2?20:48);assert.equal(l.slotCount,5);for(const color of COLORS)assert.equal(l.blocks.filter(b=>b.color===color).length,l.containers.filter(c=>c.color===color).reduce((sum,c)=>sum+c.robotCount,0));boards.add(JSON.stringify(l.blocks));}assert.equal(boards.size,500);
 });

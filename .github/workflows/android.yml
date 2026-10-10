@@ -1,4 +1,4 @@
-name: Robot Flow Android APK
+name: RoboRelay Android APK
 on:
   push:
     branches: [main]
@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,11 +20,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: node scripts/verify-native.mjs
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      # GitHub's Ubuntu image already includes the SDK and accepted licenses.
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0"'
       - run: chmod +x gradlew && ./gradlew assembleDebug lintDebug --no-daemon
         working-directory: android
       - uses: actions/upload-artifact@v4
         with:
-          name: RobotFlow-debug-apk
+          name: RoboRelay-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk

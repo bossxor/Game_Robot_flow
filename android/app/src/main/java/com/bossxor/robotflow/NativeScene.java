@@ -44,7 +44,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
     private int shader(int kind, String code) {
         int id = GLES20.glCreateShader(kind); GLES20.glShaderSource(id, code); GLES20.glCompileShader(id);
         int[] ok = new int[1]; GLES20.glGetShaderiv(id, GLES20.GL_COMPILE_STATUS, ok, 0);
-        if (ok[0] == 0) throw new IllegalStateException("Robot Flow shader: " + GLES20.glGetShaderInfoLog(id));
+        if (ok[0] == 0) throw new IllegalStateException("RoboRelay shader: " + GLES20.glGetShaderInfoLog(id));
         return id;
     }
     @Override public void onSurfaceCreated(GL10 gl, EGLConfig config) {
@@ -75,7 +75,7 @@ public final class NativeScene extends GLSurfaceView implements GLSurfaceView.Re
                 for (int i = 0; i < BASE_SIMULATION_RATE * actualSpeed; i++) g.update(dt);
                 camera(g.level.width, g.level.height, false);
                 drawBoard(g);
-                if(BuildConfig.DEBUG){perfCost+=SystemClock.elapsedRealtimeNanos()-frameStart;perfFrames++;if(now-perfStarted>10_000_000_000L){android.util.Log.d("RobotFlowPerf","render CPU mean="+String.format(java.util.Locale.US,"%.2f",perfCost/1e6/Math.max(1,perfFrames))+"ms bots="+g.bots.size()+" tiles="+g.remainingBlocks()+" GL error="+GLES20.glGetError());perfStarted=now;perfFrames=0;perfCost=0;}}
+                if(BuildConfig.DEBUG){perfCost+=SystemClock.elapsedRealtimeNanos()-frameStart;perfFrames++;if(now-perfStarted>10_000_000_000L){android.util.Log.d("RoboRelayPerf","render CPU mean="+String.format(java.util.Locale.US,"%.2f",perfCost/1e6/Math.max(1,perfFrames))+"ms bots="+g.bots.size()+" tiles="+g.remainingBlocks()+" GL error="+GLES20.glGetError());perfStarted=now;perfFrames=0;perfCost=0;}}
 
             }
         }

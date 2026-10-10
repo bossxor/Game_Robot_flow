@@ -1,6 +1,6 @@
 {
-  "name": "Robot Flow · 로봇 플로우",
-  "short_name": "Robot Flow",
+  "name": "RoboRelay · 로보릴레이",
+  "short_name": "RoboRelay",
   "start_url": "../",
   "scope": "../",
   "display": "standalone",

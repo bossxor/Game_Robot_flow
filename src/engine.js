@@ -1,3 +1,4 @@
+import { planQueue } from './queue-planner.js';
 export const COLORS = ['red', 'blue', 'yellow', 'green', 'purple', 'orange', 'pink'];
 export const PALETTE = { red: '#ef7868', blue: '#61ace2', yellow: '#f4ca60', green: '#83c6a3', purple: '#8b78b8', orange: '#ffa052', pink: '#ed96bc' };
 export const COLOR_NAMES = { red: '코랄', blue: '블루', yellow: '옐로', green: '민트', purple: '퍼플', orange: '오렌지', pink: '핑크' };
@@ -47,6 +48,7 @@ export function validateLevel(level) {
 
 export class Game {
   constructor(level, { random = Math.random, onEvent = () => {} } = {}) {
+    level = planQueue(level);
     validateLevel(level);
     this.level = structuredClone(level);
     this.width = level.board.width; this.height = level.board.height;

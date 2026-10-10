@@ -6,6 +6,7 @@ import java.util.*;
 /** Executes the exact Java engine shipped in the APK, without Android stubs. */
 public final class NativeCoreTests {
     static int assertions;
+    static Map<Integer,List<String>> plannedQueues=new HashMap<>();
     static void check(boolean condition,String message){assertions++;if(!condition)throw new AssertionError(message);}
     static NativeGame.Level simple(){
         NativeGame.Level l=new NativeGame.Level();l.id=1;l.width=l.height=5;l.powerChance=0;
@@ -70,10 +71,19 @@ public final class NativeCoreTests {
             if(p[0].equals("L")){l=simple();l.id=Integer.parseInt(p[1]);l.width=Integer.parseInt(p[2]);l.height=Integer.parseInt(p[3]);l.difficulty=Integer.parseInt(p[4]);l.autoFinish=p[5].equals("1");result.add(l);}
             else if(p[0].equals("B"))l.blocks.add(new NativeGame.Block(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3])));
             else if(p[0].equals("C")){NativeGame.Capsule c=new NativeGame.Capsule(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4]));c.lane=Integer.parseInt(p[5]);if(p.length>6&&!p[6].equals("-"))c.blockedBy=Arrays.stream(p[6].split(",")).mapToInt(Integer::parseInt).toArray();c.group=Integer.parseInt(p[7]);l.capsules.add(c);}
+            else if(p[0].equals("Q"))plannedQueues.computeIfAbsent(l.id,k->new ArrayList<>()).add(line.substring(2));
         }return result;
     }
     public static void main(String[] args)throws Exception{
         rules();if(args[0].equals("--rules"))return;List<NativeGame.Level> levels=read(args[0]);check(levels.size()==500,"all 500 native levels loaded");
+        for(NativeGame.Level l:levels){
+            int[] before=new int[7];for(NativeGame.Capsule c:l.capsules)before[c.color]+=c.count;
+            QueuePlanner.prepare(l);int[] after=new int[7];List<String> actual=new ArrayList<>();
+            for(NativeGame.Capsule c:l.capsules){after[c.color]+=c.count;String parents=c.blockedBy.length==0?"-":Integer.toString(c.blockedBy[0]);actual.add(c.id+" "+c.color+" "+c.count+" "+c.depth+" "+c.lane+" "+parents+" "+c.group);}
+            check(Arrays.equals(before,after),"exact native inventory "+l.id);
+            check(actual.equals(plannedQueues.get(l.id)),"Java and browser queue parity "+l.id);
+            if(l.id>1){NativeGame risky=new NativeGame(l);int lane=(l.id+l.id/10)%4;for(int i=0;i<5;i++){NativeGame.Capsule front=null;for(NativeGame.Capsule c:risky.queue)if(c.lane==lane&&risky.unlocked(c)){front=c;break;}check(front!=null&&risky.available(front.color).isEmpty()&&risky.select(front.id),"premature choice occupies a slot "+l.id);}risky.update(.1);check(risky.status==NativeGame.LOST,"five premature choices deadlock "+l.id);}
+        }
         ArrayList<String> failed=new ArrayList<>();
         for(double chance:new double[]{0,1}){
             int pass=0;
@@ -82,7 +92,11 @@ public final class NativeCoreTests {
                     if(chance==0)g.gauge=0;
                     if(g.bots.isEmpty()&&g.slots.contains(null)){
                         NativeGame.Capsule next=null;
-                        for(NativeGame.Capsule c:g.queue)if(g.unlocked(c)){if(next==null)next=c;if(!g.available(c.color).isEmpty()){next=c;break;}}
+                        for(NativeGame.Capsule c:g.queue)if(g.unlocked(c)){
+                            List<NativeGame.Capsule> group=g.selectionGroup(c);
+                            if(group.size()>Collections.frequency(g.slots,null)||group.stream().anyMatch(p->!g.unlocked(p)))continue;
+                            if(next==null)next=c;if(!g.available(c.color).isEmpty()){next=c;break;}
+                        }
                         if(next!=null)g.select(next.id);
                     }g.update(.1);
                 }
