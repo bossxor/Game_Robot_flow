@@ -12,6 +12,12 @@ final class GameLayout {
     static float compactHeight(float maxHeight,float width,int remainingRows){float scale=width/WIDTH;int capacity=rowCapacity(maxHeight/scale);return maxHeight-(capacity-Math.min(capacity,Math.max(0,remainingRows)))*ROW_STEP*scale;}
     static float rowLeft(int count) { return (WIDTH - (count * CARD + (count - 1) * GAP)) / 2; }
     static float columnX(int column, int count) { return rowLeft(count) + column * (CARD + GAP); }
+    static int[] liveLanes(int[] counts) {
+        int count=0;for(int n:counts)if(n>0)count++;
+        int[] lanes=new int[count];int at=0;
+        for(int i=0;i<counts.length;i++)if(counts[i]>0)lanes[at++]=i;
+        return lanes;
+    }
     static float trayTop(float height) { return height - 72; }
     private GameLayout() {}
 }

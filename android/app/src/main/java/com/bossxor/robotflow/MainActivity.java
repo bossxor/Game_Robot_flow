@@ -62,15 +62,25 @@ public final class MainActivity extends Activity {
     private void showHome(){
         if(game!=null){synchronized(game){game.paused=true;}game.listener=null;}
         if(game!=null&&game.status!=NativeGame.WON&&!inspect){save.streak=0;save.persist();}game=null;inspect=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);rebuild("home");
-        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(144)));
-        try{scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));}catch(Exception error){toast(error.getMessage());}
+        content.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffa6e6ee,0xffc9efeb,0xffc5eca6}));
+        content.addView(new HomeBrand(this,save.coins),new LinearLayout.LayoutParams(-1,dp(126)));
+        try{
+            FrameLayout hero=new FrameLayout(this);
+            scene=new NativeScene(this,new NativeGame(LevelLoader.load(getAssets(),save.current)),true);
+            hero.addView(scene,new FrameLayout.LayoutParams(-1,-1));
+            boolean compactHome=getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density<700;
+            TextView stage=text("STAGE\n"+String.format(Locale.KOREA,"%03d",save.current),compactHome?18:22,0xffffffff,true);
+            GradientDrawable stageFace=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xffc286f4,0xff8f51cf});stageFace.setCornerRadius(dp(30));stageFace.setStroke(dp(3),0xffe8caff);stage.setBackground(stageFace);stage.setElevation(dp(5));
+            FrameLayout.LayoutParams badge=new FrameLayout.LayoutParams(dp(compactHome?104:136),dp(compactHome?68:84),Gravity.TOP|(compactHome?Gravity.RIGHT:Gravity.CENTER_HORIZONTAL));badge.topMargin=dp(6);badge.rightMargin=compactHome?dp(16):0;hero.addView(stage,badge);
+            content.addView(hero,new LinearLayout.LayoutParams(-1,0,1));
+        }catch(Exception error){toast(error.getMessage());}
         LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(24),dp(4),dp(24),dp(12));
-        TextView badge=text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0])+(save.streak>0?"  ·  "+save.streak+"연승":""),13,0xff9c7856,true);bottom.addView(badge,new LinearLayout.LayoutParams(-1,dp(30)));
-        Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xff704628);
-        GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffffde83,0xffffb34d});face.setCornerRadius(dp(24));face.setStroke(dp(3),0xfffff7dc);
-        GradientDrawable base=background(0xffcf843e,24);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,18);
+        TextView badge=text(String.format(Locale.KOREA,"STAGE %03d  ·  %s",save.current,new String[]{"NORMAL","HARD","SUPER HARD"}[save.current%10==0?2:save.current%5==0?1:0])+(save.streak>0?"  ·  "+save.streak+"연승":""),13,0xff557768,true);bottom.addView(badge,new LinearLayout.LayoutParams(-1,dp(30)));
+        Button play=button("▶  플레이",true,()->startLevel(save.current));play.setTextSize(25);play.setTextColor(0xffffffff);play.setShadowLayer(dp(2),0,dp(2),0xff39784a);
+        GradientDrawable face=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xffb5ed67,0xff63c33c});face.setCornerRadius(dp(32));face.setStroke(dp(4),0xfffff7dc);
+        GradientDrawable base=background(0xff3f873c,32);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base,face});layers.setLayerInset(1,0,0,0,dp(7));play.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22ffffff),layers,null));play.setPadding(0,0,0,dp(7));bottom.addView(play,new LinearLayout.LayoutParams(-1,dp(78)));gap(bottom,18);
         LinearLayout links=new LinearLayout(this);String[] labels={"스테이지","로봇","아이템","설정"};int[] navIcons={9,11,0,10};
-        for(int i=0;i<4;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});icon.homeStyle();column.addView(icon,new LinearLayout.LayoutParams(-1,dp(62)));gap(column,7);column.addView(text(labels[i],11,0xff927352,true));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=dp(12);links.addView(column,lp);}
+        for(int i=0;i<4;i++){final int n=i;LinearLayout column=new LinearLayout(this);column.setOrientation(LinearLayout.VERTICAL);column.setGravity(Gravity.CENTER);GameIcons icon=new GameIcons(this,navIcons[i],labels[i],()->{effect("click");if(n==0)showStages((save.current-1)/20);else if(n==1)showRobots();else if(n==2)showItems();else showSettings();});icon.homeStyle();column.addView(icon,new LinearLayout.LayoutParams(-1,dp(62)));gap(column,7);column.addView(text(labels[i],11,0xff4f7163,true));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=dp(12);links.addView(column,lp);}
         bottom.addView(links);content.addView(bottom,new LinearLayout.LayoutParams(-1,dp(244)));
     }
 
@@ -81,7 +91,7 @@ public final class MainActivity extends Activity {
             if(game!=null)game.listener=null;rebuild("game");game=next;resultShown=false;if(!inspect){save.current=id;save.persist();}
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final NativeGame owner=game;
-            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 5배속");}});
+            game.listener=(type,color,x,y)->handler.post(()->{if(game==owner){effect(type);if(type.equals("lost"))showResult();if(type.equals("won"))handler.postDelayed(()->{if(game==owner)showResult();},850);if(type.equals("finishRush"))toast("마지막 작업 · 10배속");}});
             header=new NativeHud(this,game,save,true,this::action);content.addView(header,new LinearLayout.LayoutParams(-1,dp(86)));
             scene=new NativeScene(this,game,false);scene.blockTap=color->{synchronized(owner){if(game==owner&&controls.clearMode){if(owner.clearColor(color,save.unlimitedItems)){controls.clearMode=false;scene.clearMode=false;consume(1);}else toast("컬러 제거는 스테이지당 1회 사용할 수 있어요.");}}};content.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
             controls=new NativeHud(this,game,save,false,this::action);
