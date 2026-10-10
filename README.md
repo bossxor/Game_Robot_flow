@@ -1,7 +1,9 @@
 # RoboRelay — Native Android 3D
 
 색상별 로봇을 출격시켜 블록을 회수하는 **Android 네이티브 3D 퍼즐 게임**입니다.
-기존 배포 설치 파일 (이전 이름): `releases/RobotFlow-v0.7.2-native-3d-debug.apk`
+최신 설치 파일: [RoboRelay v0.9.3 APK](https://github.com/bossxor/Game_Robot_flow/releases/tag/v0.9.3), 로컬 경로 `releases/RoboRelay-v0.9.3-native-3d-debug.apk`.
+
+v0.9.3은 새 메인과 열 단위 중앙 정렬, 컨테이너 로켓 이동, 두꺼운 묶음 연결선, 컬러 제거의 1.6배 확대·드래그 선택을 포함합니다. 마지막 자동 마무리는 10배속입니다. [기기 검증 기록](docs/v093-validation.md)
 
 v0.9.0은 둥근 로봇·볼록한 메인 버튼, 선명한 컨테이너와 열 단위 중앙 정렬을 적용합니다. 한 열을 모두 쓰면 남은 열이 자연스럽게 중앙으로 이동하며 마지막 자동 마무리는 10배속입니다. [v0.9 UI 변경](docs/roborelay-v09.md)
 
@@ -9,7 +11,7 @@ v0.7.2은 5개 작업 공간 표시, 컨테이너 앞에서 순차 출격, 묶�
 
 참고 APK는 UI 배치와 조작 흐름 분석에 사용했습니다. 게임 그래픽과 코드는 로봇 테마로 자체 구현하며 참고 APK의 자산을 배포하지 않습니다.
 
-Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 최신 소스와 로컬 빌드에는 500개 레벨이 포함되어 인터넷 연결 없이 실행됩니다. 이전 배포 APK에는 200개가 포함되어 있습니다.
+Android 8.0(API 26) 이상과 OpenGL ES 2.0을 지원합니다. 최신 APK에는 500개 레벨이 포함되어 인터넷 연결 없이 실행됩니다.
 
 ## 네이티브 전환
 
@@ -52,7 +54,7 @@ APK에 HTML, JavaScript, CSS 또는 WebView 실행기를 포함하지 않습니�
 APK를 Android 기기로 복사하여 설치하거나 USB 디버깅 기기에서:
 
 ```powershell
-adb install --user 0 -r releases/RobotFlow-v0.7.2-native-3d-debug.apk
+adb install --user 0 -r releases/RoboRelay-v0.9.3-native-3d-debug.apk
 adb shell am start -n com.bossxor.robotflow/.MainActivity
 ```
 
