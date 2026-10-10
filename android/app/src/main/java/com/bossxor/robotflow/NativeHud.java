@@ -128,7 +128,7 @@ public final class NativeHud extends View {
         if(m.goalY!=GameLayout.ACTIVE_Y){
             m.fromX=m.x;m.fromY=m.y;m.goalX=x;m.goalY=GameLayout.ACTIVE_Y;m.began=now;
             m.rocket=android.animation.ValueAnimator.areAnimatorsEnabled();
-            m.cargo=new NativeGame.Capsule(capsule.id,capsule.color,Math.max(0,capsule.count-capsule.loaded),capsule.depth);
+            m.cargo=new NativeGame.Capsule(capsule.id,capsule.color,Math.max(0,capsule.count-capsule.loaded),capsule.depth);m.cargo.group=capsule.group;
             if(!m.rocket){m.fromX=x;m.fromY=GameLayout.ACTIVE_Y;}
         }
         m.goalX=x;m.advance(now);return m;
@@ -161,9 +161,50 @@ public final class NativeHud extends View {
         card(c,m.cargo,0,0,true,true,false);c.restore();
     }
     private boolean touched(String key, int id) { return pressed != null && pressed.key.equals(key) && pressed.id == id; }
+    private static class LinkNode {
+        final NativeGame.Capsule cargo;final float x,y;
+        LinkNode(NativeGame.Capsule cargo,float x,float y){this.cargo=cargo;this.x=x;this.y=y;}
+    }
+    private void links(Canvas canvas,List<LinkNode> nodes) {
+        Map<Integer,List<LinkNode>> groups=new LinkedHashMap<>();
+        for(LinkNode n:nodes)if(n.cargo.group>0)groups.computeIfAbsent(n.cargo.group,k->new ArrayList<>()).add(n);
+        for(List<LinkNode> group:groups.values()){
+            List<LinkNode> joined=new ArrayList<>();joined.add(group.remove(0));
+            while(!group.isEmpty()){
+                LinkNode a=null,b=null;double best=Double.MAX_VALUE;
+                for(LinkNode from:joined)for(LinkNode to:group){double d=Math.hypot(from.x-to.x,from.y-to.y);if(d<best){best=d;a=from;b=to;}}
+                connector(canvas,a,b);joined.add(b);group.remove(b);
+            }
+        }
+    }
+    private void connector(Canvas canvas,LinkNode a,LinkNode b) {
+        float size=GameLayout.CARD,ax=a.x+size/2,ay=a.y+size/2,bx=b.x+size/2,by=b.y+size/2;
+        float dx=bx-ax,dy=by-ay;if(Math.hypot(dx,dy)<1)return;
+        Path path=new Path();
+        if(Math.abs(dy)<size*.2f&&Math.abs(dx)>size*1.8f){
+            float top=Math.min(a.y,b.y)-9;path.moveTo(ax,a.y+5);path.lineTo(ax,top);path.lineTo(bx,top);path.lineTo(bx,b.y+5);
+        }else if(Math.abs(dx)<size*.2f&&Math.abs(dy)>size*1.8f){
+            float right=Math.max(a.x,b.x)+size+9;path.moveTo(a.x+size-5,ay);path.lineTo(right,ay);path.lineTo(right,by);path.lineTo(b.x+size-5,by);
+        }else{
+            float inset=(size/2-5)/Math.max(Math.abs(dx),Math.abs(dy));
+            path.moveTo(ax+dx*inset,ay+dy*inset);path.lineTo(bx-dx*inset,by-dy*inset);
+        }
+        paint.setShader(null);paint.setStyle(Paint.Style.STROKE);paint.setStrokeJoin(Paint.Join.ROUND);paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(16);paint.setColor(0x55404c64);canvas.drawPath(path,paint);
+        PathMeasure measure=new PathMeasure(path,false);float middle=measure.getLength()/2;Path half=new Path();
+        paint.setStrokeWidth(12);paint.setStrokeCap(Paint.Cap.BUTT);
+        measure.getSegment(0,middle,half,true);paint.setColor(CARD_COLORS[a.cargo.color]);canvas.drawPath(half,paint);
+        half.reset();measure.getSegment(middle,measure.getLength(),half,true);paint.setColor(CARD_COLORS[b.cargo.color]);canvas.drawPath(half,paint);
+        float[] start=new float[2],end=new float[2];measure.getPosTan(0,start,null);measure.getPosTan(measure.getLength(),end,null);
+        paint.setStyle(Paint.Style.FILL);paint.setColor(CARD_COLORS[a.cargo.color]);canvas.drawCircle(start[0],start[1],6,paint);
+        paint.setColor(CARD_COLORS[b.cargo.color]);canvas.drawCircle(end[0],end[1],6,paint);
+        paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeWidth(2);paint.setColor(0x66ffffff);canvas.drawPath(path,paint);
+        paint.setStyle(Paint.Style.FILL);paint.setStrokeCap(Paint.Cap.BUTT);
+    }
     private void drawControls(Canvas c, float width, float height) {
         float scale = width / GameLayout.WIDTH, logicalHeight = height / scale;
         c.save(); c.scale(scale, scale); long now = SystemClock.elapsedRealtime();
+        List<LinkNode> queuedLinks=new ArrayList<>(),activeLinks=new ArrayList<>();
         List<List<NativeGame.Capsule>> lanes = new ArrayList<>(); int max = 0;
         for (int lane = 0; lane < 4; lane++) {
             List<NativeGame.Capsule> row = new ArrayList<>();
@@ -179,8 +220,7 @@ public final class NativeHud extends View {
                 List<NativeGame.Capsule> lane=lanes.get(live[column]);if(page+row>=lane.size())continue;
                 NativeGame.Capsule a=lane.get(page+row);
                 float x=GameLayout.columnX(column,live.length),y=GameLayout.QUEUE_Y+row*GameLayout.ROW_STEP;
-                Motion m=position(a.id,x,y,now);card(c,a,m.x,m.y,false,game.unlocked(a),touched("capsule",a.id));
-                if(a.group>0&&column+1<live.length&&page+row<lanes.get(live[column+1]).size()&&lanes.get(live[column+1]).get(page+row).group==a.group){paint.setShader(null);paint.setColor(0xfffff3df);paint.setStrokeWidth(4);c.drawLine(m.x+GameLayout.CARD-2,m.y+25,m.x+GameLayout.CARD+GameLayout.GAP+2,m.y+25,paint);}
+                Motion m=position(a.id,x,y,now);card(c,a,m.x,m.y,false,game.unlocked(a),touched("capsule",a.id));queuedLinks.add(new LinkNode(a,m.x,m.y));
                 if(game.unlocked(a)&&game.risky(a)){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffd86c52);paint.setStrokeWidth(2);c.drawRoundRect(m.x-2,m.y-2,m.x+50,m.y+50,12,12,paint);paint.setStyle(Paint.Style.FILL);}
                 hit((m.x-4)*scale,(m.y-3)*scale,(GameLayout.CARD+8)*scale,GameLayout.ROW_STEP*scale,"capsule",a.id);
             }
@@ -191,10 +231,11 @@ public final class NativeHud extends View {
             box(c,slotX-1,GameLayout.ACTIVE_Y+4,50,54,0xffc8b294,11);box(c,slotX,GameLayout.ACTIVE_Y,48,48,0xfffff3df,10);
             NativeGame.Capsule a = game.slots.get(slot); if (a == null) continue;
             Motion m = launch(a, GameLayout.columnX(slot, game.slots.size()), now);
-            if(!m.rocket||m.progress>=1)card(c, a, m.x, m.y, true, true, false);
+            if(!m.rocket||m.progress>=1){card(c, a, m.x, m.y, true, true, false);activeLinks.add(new LinkNode(a,m.x,m.y));}
         }
         // Keep the flight visible even if 10x simulation retires its cargo before landing.
-        for(Motion m:motions.values())if(m.rocket){m.advance(now);rocket(c,m,now);}
+        for(Motion m:motions.values())if(m.rocket){m.advance(now);rocket(c,m,now);if(m.progress<1)activeLinks.add(new LinkNode(m.cargo,m.x,m.y));}
+        links(c,queuedLinks);links(c,activeLinks);
         if (pullMode) label(c, "꺼낼 컨테이너를 선택하세요", 192, 65, 9, INK);
         if (clearMode) label(c,"없앨 색의 블록을 터치하세요",192,65,9,INK);
         float tray = GameLayout.trayTop(logicalHeight);
