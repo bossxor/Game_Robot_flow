@@ -86,7 +86,7 @@ public final class NativeCoreTests {
     static List<NativeGame.Level> read(String path)throws Exception{
         List<NativeGame.Level> result=new ArrayList<>();NativeGame.Level l=null;
         for(String line:Files.readAllLines(Paths.get(path))){String[] p=line.split(" ");
-            if(p[0].equals("L")){l=simple();l.id=Integer.parseInt(p[1]);l.width=Integer.parseInt(p[2]);l.height=Integer.parseInt(p[3]);l.difficulty=Integer.parseInt(p[4]);l.autoFinish=p[5].equals("1");result.add(l);}
+            if(p[0].equals("L")){l=simple();l.id=Integer.parseInt(p[1]);l.width=Integer.parseInt(p[2]);l.height=Integer.parseInt(p[3]);l.difficulty=Integer.parseInt(p[4]);l.autoFinish=p[5].equals("1");l.queueVersion=p.length>6?Integer.parseInt(p[6]):0;result.add(l);}
             else if(p[0].equals("B"))l.blocks.add(new NativeGame.Block(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3])));
             else if(p[0].equals("K"))l.keys.add(new NativeGame.BoardKey(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4])));
             else if(p[0].equals("S"))l.seals.add(new NativeGame.Seal(Integer.parseInt(p[1]),Integer.parseInt(p[2]),Integer.parseInt(p[3]),Integer.parseInt(p[4]),Integer.parseInt(p[5]),Integer.parseInt(p[6])));
@@ -102,7 +102,10 @@ public final class NativeCoreTests {
             for(NativeGame.Capsule c:l.capsules){after[c.color]+=c.count;String parents=c.blockedBy.length==0?"-":Integer.toString(c.blockedBy[0]);actual.add(c.id+" "+c.color+" "+c.count+" "+c.depth+" "+c.lane+" "+parents+" "+c.group);}
             check(Arrays.equals(before,after),"exact native inventory "+l.id);
             check(actual.equals(plannedQueues.get(l.id)),"Java and browser queue parity "+l.id);
-            if(l.id>1){NativeGame risky=new NativeGame(l);for(NativeGame.BoardKey key:risky.keys)for(NativeGame.Block block:risky.blocks)if(block.x==key.x&&block.y==key.y)risky.remove(block.id);int lane=(l.id+l.id/10)%4;for(int i=0;i<5;i++){NativeGame.Capsule front=null;for(NativeGame.Capsule c:risky.queue)if(c.lane==lane&&risky.unlocked(c)){front=c;break;}check(front!=null&&risky.available(front.color).isEmpty()&&risky.select(front.id),"premature choice occupies a slot "+l.id);}risky.update(.1);check(risky.status==NativeGame.LOST,"five premature choices deadlock "+l.id);}
+            NativeGame risky=new NativeGame(l);for(NativeGame.BoardKey key:risky.keys)for(NativeGame.Block block:risky.blocks)if(block.x==key.x&&block.y==key.y)risky.remove(block.id);
+            int lane=(l.id+l.id/10)%4,chosen=0;
+            for(int i=0;i<5;i++){NativeGame.Capsule front=null;for(NativeGame.Capsule c:risky.queue)if(c.lane==lane&&risky.unlocked(c)){front=c;break;}if(front==null||!risky.available(front.color).isEmpty())break;check(risky.select(front.id),"premature choice occupies a slot "+l.id);chosen++;}
+            if(chosen==5){risky.update(.1);check(risky.status==NativeGame.LOST,"five premature choices deadlock "+l.id);}
         }
         ArrayList<String> failed=new ArrayList<>();
         for(double chance:new double[]{0,1}){

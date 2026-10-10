@@ -22,7 +22,7 @@ public final class LevelLoader {
         JSONObject json = new JSONObject(text), board = json.getJSONObject("board");
         NativeGame.Level level = new NativeGame.Level(); level.id = json.getInt("levelId"); level.name = json.optString("name", "로봇 공장");
         level.width = board.getInt("width"); level.height = board.getInt("height"); level.slotCount = json.optInt("slotCount", 5);
-        level.difficulty=json.optInt("difficulty",0);level.theme=json.optInt("theme",0);level.autoFinish=json.optBoolean("autoFinish",false);
+        level.difficulty=json.optInt("difficulty",0);level.theme=json.optInt("theme",0);level.autoFinish=json.optBoolean("autoFinish",false);level.queueVersion=json.optInt("queueVersion",0);
         level.powerChance = json.optDouble("powerRobotChance", .1); level.revealDepth = json.optInt("revealDepth", 100); level.reward = json.optInt("reward", 100);
         JSONObject mega = json.getJSONObject("megaRobot"); level.megaRequired = mega.getInt("requiredGauge"); level.megaCapacity = mega.getInt("blockCount");
         JSONArray blocks = json.getJSONArray("blocks"), capsules = json.getJSONArray("containers");

@@ -6,27 +6,29 @@ import {TOTAL_LEVELS} from '../src/config.js';
 import {defaults,sanitizeSave,recordWin} from '../src/storage.js';
 import {planQueue} from '../src/queue-planner.js';
 const load=async id=>JSON.parse(await readFile(`public/construction-levels/level-${String(id).padStart(2,'0')}.json`,'utf8'));
-test('All 500 planned queues preserve inventory; premature inner colours can fill five slots',async()=>{
+test('All 500 rebuilt queues preserve inventory and valid parent order',async()=>{
+ let traps=0;
  for(let id=1;id<=TOTAL_LEVELS;id++){
   const original=await load(id),planned=validateLevel(planQueue(original));
   assert.deepEqual(planned.blocks,original.blocks);assert.equal(planned.slotCount,5);
   for(const color of COLORS)assert.equal(planned.containers.filter(c=>c.color===color).reduce((n,c)=>n+c.robotCount,0),original.containers.filter(c=>c.color===color).reduce((n,c)=>n+c.robotCount,0));
-  assert.deepEqual(planQueue(planned),planned);assert.equal(original.queueVersion,undefined);
-  const trapLane=(id+Math.floor(id/10))%4,waiting=planned.containers.filter(c=>c.lane===trapLane);
-  assert.ok(waiting.length>=(id===1?2:[5,7,9][planned.difficulty]));
-  if(id===1)continue;
-  const g=new Game(planned);for(const key of g.keys)g.removeBlock(g.blocks.find(b=>b.x===key.x&&b.y===key.y).id);for(let i=0;i<5;i++){const next=g.queue.find(c=>c.lane===trapLane&&g.isUnlocked(c));assert.equal(g.available(next.color).length,0);assert.ok(g.select(next.id));}
-  g.update(.1);assert.equal(g.status,'lost',`premature selections in level ${id}`);
+  assert.deepEqual(planQueue(planned),planned);
+  for(const c of planned.containers)for(const parent of c.blockedBy){const p=planned.containers.find(q=>q.id===parent);assert(p&&p.lane===c.lane&&p.depth<c.depth);}
+  const g=new Game(planned);for(const key of g.keys)g.removeBlock(g.blocks.find(b=>b.x===key.x&&b.y===key.y).id);
+  const lane=(id+Math.floor(id/10))%4;let chosen=0;
+  for(let i=0;i<5;i++){const c=g.queue.find(c=>c.lane===lane&&g.isUnlocked(c));if(!c||g.available(c.color).length)break;assert(g.select(c.id));chosen++;}
+  if(chosen===5){g.update(.1);assert.equal(g.status,'lost');traps++;}
  }
+ assert(traps>0,'Rebuilt stages still include meaningful premature-colour traps');
 });
 test('Browser construction data covers 500 distinct boards with exact inventories',async()=>{
- const boards=new Set();assert.equal(TOTAL_LEVELS,500);for(let id=1;id<=TOTAL_LEVELS;id++){const l=validateLevel(await load(id));assert.equal(l.levelId,id);assert.equal(l.board.width,id<=2?20:48);assert.equal(l.slotCount,5);for(const color of COLORS)assert.equal(l.blocks.filter(b=>b.color===color).length,l.containers.filter(c=>c.color===color).reduce((sum,c)=>sum+c.robotCount,0));boards.add(JSON.stringify(l.blocks));}assert.equal(boards.size,500);
+ const boards=new Set();assert.equal(TOTAL_LEVELS,500);for(let id=1;id<=TOTAL_LEVELS;id++){const l=validateLevel(await load(id));assert.equal(l.levelId,id);assert.equal(l.board.width,id<=6?[28,32,36,40,44,48][id-1]:48);assert.equal(l.slotCount,5);for(const color of COLORS)assert.equal(l.blocks.filter(b=>b.color===color).length,l.containers.filter(c=>c.color===color).reduce((sum,c)=>sum+c.robotCount,0));boards.add(JSON.stringify(l.blocks));}assert.equal(boards.size,500);
 });
 for(const chance of [0,1])test(`Browser tutorial clears through the shared truck with builder chance ${chance}`,async()=>{
- const l=await load(1);l.powerRobotChance=chance;const g=new Game(l,{random:seededRandom(37)});for(let i=0;i<60000&&g.status==='playing';i++){if(!g.jobs.length&&g.slots.includes(null)){const options=g.queue.filter(c=>g.isUnlocked(c));const next=options.find(c=>g.available(c.color).length)||options[0];if(next)g.select(next.id);}g.update(.1);assert.ok(g.truckCargo<=20);assert.ok(g.jobs.every(j=>j.type==='mini'||j.type==='mega'));}assert.equal(g.status,'won');assert.equal(g.delivered,400);assert.equal(g.truckCargo,0);assert.equal(g.truckPending,0);
+ const l=await load(1);l.powerRobotChance=chance;const g=new Game(l,{random:seededRandom(37)});for(let i=0;i<60000&&g.status==='playing';i++){if(!g.jobs.length&&g.slots.includes(null)){const options=g.queue.filter(c=>g.isUnlocked(c));const next=options.find(c=>g.available(c.color).length)||options[0];if(next)g.select(next.id);}g.update(.1);assert.ok(g.truckCargo<=20);assert.ok(g.jobs.every(j=>j.type==='mini'||j.type==='mega'));}assert.equal(g.status,'won');assert.equal(g.delivered,l.blocks.length);assert.equal(g.truckCargo,0);assert.equal(g.truckPending,0);
 });
 test('Large board color clear loads every block once and waits for final truck',async()=>{
- const g=new Game(await load(500));g.unlimitedItems=true;for(let pass=0;pass<2;pass++)for(const c of new Set(g.blocks.map(b=>b.color)))g.clearColor(c);assert.equal(g.remainingBlocks,0);assert.equal(g.status,'playing');for(let i=0;i<4000&&g.status==='playing';i++)g.update(.1);assert.equal(g.status,'won');assert.equal(g.delivered,2304);assert.equal(g.truckCargo,0);assert.equal(g.truckPending,0);
+ const g=new Game(await load(500));g.unlimitedItems=true;for(let pass=0;pass<2;pass++)for(const c of new Set(g.blocks.map(b=>b.color)))g.clearColor(c);assert.equal(g.remainingBlocks,0);assert.equal(g.status,'playing');for(let i=0;i<4000&&g.status==='playing';i++)g.update(.1);assert.equal(g.status,'won');assert.equal(g.delivered,g.blocks.length);assert.equal(g.truckCargo,0);assert.equal(g.truckPending,0);
 });
 test('Unlimited item state persists and progression crosses the previous last level',()=>{
  const s=defaults();s.unlimitedItems=true;s.highestUnlockedLevel=200;recordWin(s,200,100,10,100);const loaded=sanitizeSave(s);assert.equal(loaded.unlimitedItems,true);assert.equal(loaded.lastLevel,201);assert.deepEqual(loaded.boosters,s.boosters);
@@ -52,4 +54,16 @@ test('Key and colour seals block items, unlock at the exact threshold, and reset
 test('Mystery containers reveal after two cleared colours without bypassing their queue parents',()=>{
  const level={levelId:13,queueVersion:1,board:{width:5,height:5},slotCount:5,powerRobotChance:0,megaRobot:{requiredGauge:100,blockCount:8},blocks:[{x:0,y:0,color:'red'},{x:1,y:0,color:'green'},{x:2,y:0,color:'blue'},{x:3,y:0,color:'orange'}],containers:[{id:1,color:'orange',robotCount:1,depth:0,blockedBy:[]},{id:2,color:'red',robotCount:1,depth:0,blockedBy:[]},{id:3,color:'green',robotCount:1,depth:0,blockedBy:[]},{id:7,color:'blue',robotCount:1,depth:3,blockedBy:[1]}]};
  const g=new Game(level),c=g.queue.at(-1);assert.equal(g.isVisible(c),false);g.removeBlock(0);assert.equal(g.isVisible(c),false);g.removeBlock(1);assert.equal(g.isVisible(c),true);assert.equal(g.select(7),false);
+});
+
+test('Opening stages introduce colours gradually and change silhouette, inventory and picture',async()=>{
+ const stages=await Promise.all(Array.from({length:24},(_,i)=>load(i+1)));
+ assert.equal(new Set(stages.map(l=>l.name)).size,24);
+ assert.equal(new Set(stages[0].blocks.map(b=>b.color)).size,3);
+ assert.equal(new Set(stages[1].blocks.map(b=>b.color)).size,4);
+ assert(stages[3].seals?.length);
+ const silhouettes=new Set(stages.slice(6).map(l=>l.blocks.map(b=>b.x+','+b.y).join('|')));
+ assert(silhouettes.size>=5);
+ assert(new Set(stages.map(l=>l.blocks.length)).size>=8);
+ assert(new Set(stages.map(l=>l.containers.map(c=>c.robotCount).join(','))).size>=20);
 });

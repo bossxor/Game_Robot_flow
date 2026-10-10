@@ -7,7 +7,7 @@ const colors = ['red', 'blue', 'yellow', 'green', 'purple', 'orange', 'pink'];
 const lines = [];
 for (let id = 1; id <= 500; id++) {
   const level = JSON.parse(await readFile(`public/construction-levels/level-${String(id).padStart(2, '0')}.json`, 'utf8'));
-  lines.push(`L ${id} ${level.board.width} ${level.board.height} ${level.difficulty||0} ${level.autoFinish?1:0}`);
+  lines.push(`L ${id} ${level.board.width} ${level.board.height} ${level.difficulty||0} ${level.autoFinish?1:0} ${level.queueVersion||0}`);
   for (const b of level.blocks) lines.push(`B ${b.x} ${b.y} ${colors.indexOf(b.color)}`);
   for (const c of level.containers) lines.push(`C ${c.id} ${colors.indexOf(c.color)} ${c.robotCount} ${c.depth} ${c.lane} ${(c.blockedBy || []).join(',') || '-'} ${c.group||0}`);
   for(const k of level.keys||[])lines.push(`K ${k.id} ${k.x} ${k.y} ${colors.indexOf(k.lockColor)}`);
